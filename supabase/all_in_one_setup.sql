@@ -544,6 +544,9 @@ DROP POLICY IF EXISTS "profiles_update" ON public.profiles;
 CREATE POLICY "profiles_update" ON public.profiles FOR UPDATE USING (auth.uid() = id)
 WITH CHECK (auth.uid() = id AND (role = (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid()) OR public.is_admin()));
 
+DROP POLICY IF EXISTS "profiles_insert" ON public.profiles;
+CREATE POLICY "profiles_insert" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Categories
 DROP POLICY IF EXISTS "categories_select" ON public.categories;
 CREATE POLICY "categories_select" ON public.categories FOR SELECT USING (TRUE);

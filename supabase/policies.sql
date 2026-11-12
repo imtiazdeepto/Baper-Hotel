@@ -33,6 +33,12 @@ CREATE POLICY "Users can update own profile contact info"
         AND (role = (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid()) OR public.is_admin())
     );
 
+-- Authenticated users can insert their own profile row if missing
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile"
+    ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
 -- ------------------------------------------------------------
 -- 2. CATEGORIES POLICIES
 -- ------------------------------------------------------------

@@ -1,6 +1,6 @@
 // ============================================================
 // RESTAURANT FOOD ORDERING AND MANAGEMENT SYSTEM
-// Authentication & Role Management Module
+// Authentication & Role Management Module (Self-Healing & Robust)
 // ============================================================
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
@@ -21,9 +21,9 @@ export async function getCurrentUser() {
 }
 
 /**
- * Fetch profile data for a specific user ID
+ * Fetch profile data for a specific user ID with self-healing fallback
  */
-export async function getUserProfile(userId) {
+export async function getUserProfile(userId, currentUser = null) {
   if (!isSupabaseConfigured() || !userId) return null;
   try {
     const { data, error } = await supabase
@@ -32,11 +32,35 @@ export async function getUserProfile(userId) {
       .eq('id', userId)
       .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
-      return null;
+    if (data) return data;
+
+    // Self-healing fallback: If profile row is missing in public.profiles table,
+    // automatically create it using the authenticated user's session data!
+    if (!currentUser) {
+      const { data: { user } } = await supabase.auth.getUser();
+      currentUser = user;
     }
-    return data;
+
+    if (currentUser && currentUser.id === userId) {
+      const fallbackName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User';
+      const fallbackPhone = currentUser.user_metadata?.phone || null;
+      
+      const { data: inserted, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          full_name: fallbackName,
+          email: currentUser.email,
+          phone: fallbackPhone,
+          role: 'customer'
+        })
+        .select()
+        .maybeSingle();
+
+      if (inserted) return inserted;
+    }
+
+    return null;
   } catch (err) {
     console.error('Error fetching profile:', err);
     return null;
@@ -52,14 +76,23 @@ export async function login(email, password) {
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
+    email: email.trim().toLowerCase(),
     password: password
   });
 
-  if (error) throw error;
+  if (error) {
+    // Provide user-friendly guidance for common Supabase errors
+    if (error.message.includes('Email not confirmed')) {
+      throw new Error('Email not confirmed yet. In your Supabase Dashboard, go to Authentication -> Providers -> Email and turn OFF "Confirm email" for instant login without verification.');
+    }
+    if (error.message.includes('Invalid login credentials')) {
+      throw new Error('Invalid email or password. Please verify your credentials or register a new account.');
+    }
+    throw error;
+  }
 
-  // Retrieve user profile to determine role
-  const profile = await getUserProfile(data.user.id);
+  // Retrieve user profile to determine role with self-healing
+  const profile = await getUserProfile(data.user.id, data.user);
   return { user: data.user, profile };
 }
 
@@ -72,7 +105,7 @@ export async function register({ email, password, full_name, phone }) {
   }
 
   const { data, error } = await supabase.auth.signUp({
-    email: email.trim(),
+    email: email.trim().toLowerCase(),
     password: password,
     options: {
       data: {
@@ -82,7 +115,21 @@ export async function register({ email, password, full_name, phone }) {
     }
   });
 
-  if (error) throw error;
+  if (error) {
+    if (error.message.includes('rate limit')) {
+      throw new Error('Supabase email rate limit exceeded. To fix this instantly, go to your Supabase Dashboard -> Authentication -> Providers -> Email and disable "Confirm email" to enable unlimited instant signups.');
+    }
+    if (error.message.includes('User already registered')) {
+      throw new Error('An account with this email already exists. Please sign in instead.');
+    }
+    throw error;
+  }
+
+  // If session is active immediately (when email confirmation is disabled), create profile
+  if (data?.session && data?.user) {
+    await getUserProfile(data.user.id, data.user);
+  }
+
   return data;
 }
 
@@ -113,11 +160,10 @@ export async function requireAuth(allowedRoles = []) {
     return null;
   }
 
-  const profile = await getUserProfile(user.id);
+  const profile = await getUserProfile(user.id, user);
   const role = profile?.role || 'customer';
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
-    // Role not authorized
     alert(`Access Denied: You must be a ${allowedRoles.join(' or ')} to view this page.`);
     if (role === 'admin') {
       window.location.href = '/admin/dashboard.html';
@@ -144,10 +190,10 @@ export async function setupAuthNav() {
   if (!user) {
     authContainer.innerHTML = `
       <div class="d-flex align-items-center gap-2">
-        <a href="/login.html" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+        <a href="/login.html" class="button button-secondary py-1 px-3 small-text">
           <i class="fa-solid fa-right-to-bracket me-1"></i> Sign In
         </a>
-        <a href="/register.html" class="btn btn-primary btn-sm rounded-pill px-3">
+        <a href="/register.html" class="button button-primary py-1 px-3 small-text">
           <i class="fa-solid fa-user-plus me-1"></i> Register
         </a>
       </div>
@@ -155,9 +201,9 @@ export async function setupAuthNav() {
     return;
   }
 
-  const profile = await getUserProfile(user.id);
+  const profile = await getUserProfile(user.id, user);
   const role = profile?.role || 'customer';
-  const roleBadgeClass = role === 'admin' ? 'bg-danger' : role === 'staff' ? 'bg-info text-dark' : 'bg-secondary';
+  const roleBadgeClass = role === 'admin' ? 'bg-danger text-white' : role === 'staff' ? 'bg-info text-dark' : 'bg-secondary text-white';
 
   authContainer.innerHTML = `
     <div class="dropdown">
@@ -185,7 +231,7 @@ export async function setupAuthNav() {
         ${
           role === 'staff'
             ? `<li><hr class="dropdown-divider"></li>
-               <li><a class="dropdown-item small text-info fw-semibold" href="/staff/orders.html"><i class="fa-solid fa-clipboard-list me-2"></i>Staff Kitchen Queue</a></li>`
+               <li><a class="dropdown-item small text-info fw-semibold" href="/staff/orders.html"><i class="fa-solid fa-clipboard-list me-2"></i>Kitchen Queue</a></li>`
             : ''
         }
         <li><hr class="dropdown-divider"></li>

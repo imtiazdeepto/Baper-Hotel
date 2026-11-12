@@ -19,12 +19,13 @@
       </div>
       <h3 class="fw-bold text-dark mb-0">Baper Hotel</h3>
     </a>
-    <p class="text-muted small mt-2">Sign in to manage your orders or access restaurant controls</p>
+    <p class="text-muted small mt-2">Sign in to your account to place orders or access management</p>
   </div>
 
   <!-- Login Card -->
   <div class="card border-0 shadow-sm rounded-4 p-4 p-sm-5 bg-white">
     <div id="login-error-alert" class="alert alert-danger small rounded-3 mb-3" style="display:none;"></div>
+    <div id="login-info-alert" class="alert alert-info small rounded-3 mb-3" style="display:none;"></div>
 
     <form id="login-form">
       <div class="mb-3">
@@ -36,16 +37,19 @@
       </div>
 
       <div class="mb-3">
-        <div class="d-flex justify-content-between">
-          <label for="login-password" class="form-label small fw-bold text-dark">Password</label>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label for="login-password" class="form-label small fw-bold text-dark mb-0">Password</label>
         </div>
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-solid fa-lock text-muted"></i></span>
-          <input type="password" id="login-password" class="form-control border-start-0 rounded-end-3" placeholder="••••••••" required autocomplete="current-password">
+          <input type="password" id="login-password" class="form-control border-start-0 border-end-0" placeholder="••••••••" required autocomplete="current-password">
+          <button class="btn btn-light border border-start-0 rounded-end-3 text-muted" type="button" id="toggle-password-btn" aria-label="Toggle password visibility">
+            <i class="fa-regular fa-eye" id="password-eye-icon"></i>
+          </button>
         </div>
       </div>
 
-      <button type="submit" id="login-submit-btn" class="btn btn-primary w-100 py-2 rounded-pill fw-bold shadow-sm mt-3">
+      <button type="submit" id="login-submit-btn" class="button button-primary w-100 py-2 rounded-pill fw-bold shadow-sm mt-3">
         <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In
       </button>
     </form>
@@ -56,30 +60,66 @@
         <a href="/register.html" class="text-primary fw-semibold text-decoration-none">Create an Account</a>
       </p>
       <div class="mt-2">
-        <a href="/" class="small text-muted text-decoration-none"><i class="fa-solid fa-arrow-left me-1"></i>Back to Menu</a>
+        <a href="/" class="small text-muted text-decoration-none"><i class="fa-solid fa-arrow-left me-1"></i>Back to Food Menu</a>
       </div>
     </div>
   </div>
 
-  <!-- Role info helper for university viva / evaluation -->
+  <!-- Role info helper for testing -->
   <div class="mt-4 p-3 bg-white border rounded-4 shadow-sm text-center">
-    <div class="small fw-bold text-muted mb-1"><i class="fa-solid fa-shield-halved text-primary me-1"></i>Role-Based Access Control:</div>
+    <div class="small fw-bold text-muted mb-1"><i class="fa-solid fa-shield-halved text-primary me-1"></i>Access Roles:</div>
     <p class="small text-muted mb-0" style="font-size: 0.78rem;">
-      • Customers: Place orders & view history.<br>
-      • Staff: Manage kitchen queue.<br>
-      • Admin: Full catalog, reports & coupon controls.
+      • <strong>Customer:</strong> Browses dishes, places orders, tracks delivery.<br>
+      • <strong>Kitchen Staff:</strong> Views active queue on <code>/staff/orders.html</code>.<br>
+      • <strong>Admin:</strong> Full food catalog, coupons, and sales reports on <code>/admin/dashboard.html</code>.
     </p>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script type="module">
-  import { login } from '/assets/js/auth.js';
+  import { login, getCurrentUser, getUserProfile } from '/assets/js/auth.js';
   import { checkAndDisplayConfigNotice } from '/assets/js/supabaseClient.js';
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     checkAndDisplayConfigNotice();
 
+    // Check if already logged in
+    const existingUser = await getCurrentUser();
+    if (existingUser) {
+      const profile = await getUserProfile(existingUser.id, existingUser);
+      const role = profile?.role || 'customer';
+      const params = new URLSearchParams(window.location.search);
+      const redirectParam = params.get('redirect');
+
+      if (redirectParam) {
+        window.location.href = redirectParam;
+      } else if (role === 'admin') {
+        window.location.href = '/admin/dashboard.html';
+      } else if (role === 'staff') {
+        window.location.href = '/staff/orders.html';
+      } else {
+        window.location.href = '/';
+      }
+      return;
+    }
+
+    // Password visibility toggle
+    const toggleBtn = document.getElementById('toggle-password-btn');
+    const pwdInput = document.getElementById('login-password');
+    const eyeIcon = document.getElementById('password-eye-icon');
+
+    toggleBtn?.addEventListener('click', () => {
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        eyeIcon.className = 'fa-regular fa-eye-slash';
+      } else {
+        pwdInput.type = 'password';
+        eyeIcon.className = 'fa-regular fa-eye';
+      }
+    });
+
+    // Form submit
     const form = document.getElementById('login-form');
     const submitBtn = document.getElementById('login-submit-btn');
     const errorAlert = document.getElementById('login-error-alert');

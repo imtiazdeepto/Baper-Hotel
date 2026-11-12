@@ -29,15 +29,15 @@
 
     <form id="register-form">
       <div class="mb-3">
-        <label for="reg-name" class="form-label small fw-bold text-dark">Full Name</label>
+        <label for="reg-name" class="form-label small fw-bold text-dark">Full Name *</label>
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-regular fa-user text-muted"></i></span>
-          <input type="text" id="reg-name" class="form-control border-start-0 rounded-end-3" placeholder="e.g. John Doe" required>
+          <input type="text" id="reg-name" class="form-control border-start-0 rounded-end-3" placeholder="e.g. Imtiaz Ahmed" required>
         </div>
       </div>
 
       <div class="mb-3">
-        <label for="reg-email" class="form-label small fw-bold text-dark">Email Address</label>
+        <label for="reg-email" class="form-label small fw-bold text-dark">Email Address *</label>
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-regular fa-envelope text-muted"></i></span>
           <input type="email" id="reg-email" class="form-control border-start-0 rounded-end-3" placeholder="name@example.com" required autocomplete="email">
@@ -45,30 +45,33 @@
       </div>
 
       <div class="mb-3">
-        <label for="reg-phone" class="form-label small fw-bold text-dark">Phone Number (For Delivery)</label>
+        <label for="reg-phone" class="form-label small fw-bold text-dark">Phone Number (For Delivery) *</label>
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-solid fa-phone text-muted"></i></span>
-          <input type="tel" id="reg-phone" class="form-control border-start-0 rounded-end-3" placeholder="+880 1700-000000" required>
+          <input type="tel" id="reg-phone" class="form-control border-start-0 rounded-end-3" placeholder="01712345678" required>
         </div>
       </div>
 
       <div class="mb-3">
-        <label for="reg-password" class="form-label small fw-bold text-dark">Password</label>
+        <label for="reg-password" class="form-label small fw-bold text-dark">Password *</label>
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-solid fa-lock text-muted"></i></span>
-          <input type="password" id="reg-password" class="form-control border-start-0 rounded-end-3" placeholder="At least 6 characters" minlength="6" required autocomplete="new-password">
+          <input type="password" id="reg-password" class="form-control border-start-0 border-end-0" placeholder="At least 6 characters" minlength="6" required autocomplete="new-password">
+          <button class="btn btn-light border border-start-0 rounded-end-3 text-muted" type="button" id="toggle-reg-pwd-btn">
+            <i class="fa-regular fa-eye" id="reg-pwd-eye-icon"></i>
+          </button>
         </div>
       </div>
 
       <div class="mb-3">
-        <label for="reg-confirm-password" class="form-label small fw-bold text-dark">Confirm Password</label>
+        <label for="reg-confirm-password" class="form-label small fw-bold text-dark">Confirm Password *</label>
         <div class="input-group">
-          <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-solid fa-shield-check text-muted"></i></span>
+          <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-solid fa-shield-halved text-muted"></i></span>
           <input type="password" id="reg-confirm-password" class="form-control border-start-0 rounded-end-3" placeholder="Re-type password" minlength="6" required autocomplete="new-password">
         </div>
       </div>
 
-      <button type="submit" id="reg-submit-btn" class="btn btn-primary w-100 py-2 rounded-pill fw-bold shadow-sm mt-3">
+      <button type="submit" id="reg-submit-btn" class="button button-primary w-100 py-2 rounded-pill fw-bold shadow-sm mt-3">
         <i class="fa-solid fa-user-plus me-2"></i>Create Customer Account
       </button>
     </form>
@@ -79,7 +82,7 @@
         <a href="/login.html" class="text-primary fw-semibold text-decoration-none">Sign In Here</a>
       </p>
       <div class="mt-2">
-        <a href="/" class="small text-muted text-decoration-none"><i class="fa-solid fa-arrow-left me-1"></i>Back to Menu</a>
+        <a href="/" class="small text-muted text-decoration-none"><i class="fa-solid fa-arrow-left me-1"></i>Back to Food Menu</a>
       </div>
     </div>
   </div>
@@ -92,6 +95,21 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     checkAndDisplayConfigNotice();
+
+    // Toggle password visibility
+    const toggleBtn = document.getElementById('toggle-reg-pwd-btn');
+    const pwdInput = document.getElementById('reg-password');
+    const eyeIcon = document.getElementById('reg-pwd-eye-icon');
+
+    toggleBtn?.addEventListener('click', () => {
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        eyeIcon.className = 'fa-regular fa-eye-slash';
+      } else {
+        pwdInput.type = 'password';
+        eyeIcon.className = 'fa-regular fa-eye';
+      }
+    });
 
     const form = document.getElementById('register-form');
     const submitBtn = document.getElementById('reg-submit-btn');
@@ -119,27 +137,41 @@
       submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Creating Account...`;
 
       try {
-        await register({
+        const result = await register({
           email,
           password,
           full_name: name,
           phone
         });
 
-        successAlert.innerHTML = `
-          <strong>Account created successfully!</strong><br>
-          Redirecting you to sign in...
-        `;
-        successAlert.style.display = 'block';
-        form.reset();
+        // Check if session was created immediately (confirm email disabled in Supabase)
+        if (result?.session) {
+          successAlert.innerHTML = `
+            <strong><i class="fa-solid fa-circle-check me-1"></i>Account created!</strong><br>
+            Signing you in automatically...
+          `;
+          successAlert.style.display = 'block';
+          form.reset();
 
-        setTimeout(() => {
-          window.location.href = '/login.html';
-        }, 1500);
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1200);
+        } else {
+          // Email confirmation is required by Supabase project settings
+          successAlert.innerHTML = `
+            <strong><i class="fa-solid fa-circle-check me-1"></i>Account registered!</strong><br>
+            Please check your email inbox to verify your account, or log in on the sign-in page.<br>
+            <small class="text-muted mt-1 d-block">Tip: To allow instant login without email verification, turn off "Confirm email" in Supabase Auth -> Providers -> Email.</small>
+          `;
+          successAlert.style.display = 'block';
+          form.reset();
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<i class="fa-solid fa-user-plus me-2"></i>Create Customer Account`;
+        }
 
       } catch (err) {
         console.error('Registration error:', err);
-        errorAlert.textContent = err.message || 'Registration failed. Email might already be taken.';
+        errorAlert.innerHTML = `<strong>Registration Failed:</strong><br>${err.message || 'An error occurred. Please try again.'}`;
         errorAlert.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<i class="fa-solid fa-user-plus me-2"></i>Create Customer Account`;
