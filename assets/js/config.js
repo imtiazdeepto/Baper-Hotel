@@ -10,9 +10,9 @@
 // ============================================================
 
 export const APP_CONFIG = {
-  // Replace these placeholders with your live Supabase project credentials:
-  SUPABASE_URL: "https://your-project-id.supabase.co",
-  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-anon-key-here",
+  // Live Supabase project credentials:
+  SUPABASE_URL: "https://ohxycazhttmingxupngr.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeHljYXpodHRtaW5neHVwbmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NjQ0ODYsImV4cCI6MjExMDA0MDQ4Nn0.oYhVJTlQaECdkQw6Hw62wWF8tdzlDDOoOOqub9nWW1M",
   
   // Restaurant brand details
   RESTAURANT_NAME: "Baper Hotel",
