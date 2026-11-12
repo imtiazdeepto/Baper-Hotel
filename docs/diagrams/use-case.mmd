@@ -1,0 +1,48 @@
+flowchart LR
+    subgraph Actors
+        Customer["👤 Customer"]
+        Staff["👨‍🍳 Kitchen Staff"]
+        Admin["👑 Administrator"]
+    end
+
+    subgraph Customer_Use_Cases["Customer Portal"]
+        UC1["Browse Food Menu & Categories"]
+        UC2["Search Dishes"]
+        UC3["Manage Shopping Cart"]
+        UC4["Apply Discount Coupons"]
+        UC5["Place Atomic Order (Dine-in / Pickup / Delivery)"]
+        UC6["Track Order Live"]
+        UC7["View Order History"]
+    end
+
+    subgraph Staff_Use_Cases["Kitchen Staff Portal"]
+        UC8["View Real-time Kitchen Queue"]
+        UC9["Advance Order Status (Preparing / Ready / Served)"]
+        UC10["Inspect Special Cooking Notes"]
+    end
+
+    subgraph Admin_Use_Cases["Administrative Portal"]
+        UC11["Manage Food Catalog & Pricing"]
+        UC12["Upload Dish Images to Supabase Storage"]
+        UC13["Manage Categories"]
+        UC14["Create & Monitor Discount Coupons"]
+        UC15["Generate Daily Sales & Revenue Reports"]
+    end
+
+    Customer --> UC1
+    Customer --> UC2
+    Customer --> UC3
+    Customer --> UC4
+    Customer --> UC5
+    Customer --> UC6
+    Customer --> UC7
+
+    Staff --> UC8
+    Staff --> UC9
+    Staff --> UC10
+
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+    Admin --> UC14
+    Admin --> UC15

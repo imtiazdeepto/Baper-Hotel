@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Staff Queue — Baper Hotel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/admin.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-layout">
+  <!-- Staff Sidebar -->
+  <aside class="admin-sidebar shadow-sm">
+    <a href="/staff/orders.html" class="admin-brand">
+      <div class="bg-primary text-white rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+        <i class="fa-solid fa-kitchen-set"></i>
+      </div>
+      <div class="brand-title">
+        <h6 class="fw-bold mb-0 text-white">Kitchen Staff</h6>
+        <span class="text-white-50" style="font-size: 0.7rem;">Order Processing</span>
+      </div>
+    </a>
+
+    <ul class="admin-nav">
+      <li>
+        <a href="/staff/orders.html" class="admin-nav-link active">
+          <i class="fa-solid fa-clipboard-list"></i>
+          <span>Order Queue</span>
+        </a>
+      </li>
+      <li>
+        <a href="/" class="admin-nav-link">
+          <i class="fa-solid fa-store"></i>
+          <span>Public Menu</span>
+        </a>
+      </li>
+      <li class="mt-4 pt-3 border-top border-secondary">
+        <a href="/admin/dashboard.html" class="admin-nav-link text-warning">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Admin Portal</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="mt-auto pt-3 border-top border-secondary text-white-50 small">
+      <div class="d-flex justify-content-between">
+        <span>Auto-refresh:</span>
+        <span class="text-success fw-bold">Active (15s)</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Staff Content -->
+  <main class="admin-content">
+    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h3 class="fw-bold text-dark mb-1">Incoming Kitchen Tickets 🍳</h3>
+        <p class="text-muted small mb-0">Prepare customer dishes in real time and advance status tickets.</p>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-dark btn-sm active order-filter-btn rounded-start-pill px-3" data-filter="active">
+            Active Tickets
+          </button>
+          <button type="button" class="btn btn-outline-dark btn-sm order-filter-btn rounded-end-pill px-3" data-filter="all">
+            All Tickets
+          </button>
+        </div>
+        <div id="navbar-auth-section"></div>
+      </div>
+    </header>
+
+    <div class="row g-4" id="staff-orders-container">
+      <!-- Populated by staff.js -->
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="/assets/js/staff.js"></script>
+</body>
+</html>

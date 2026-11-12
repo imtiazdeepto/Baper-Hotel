@@ -1,0 +1,62 @@
+/* ============================================================
+   DESIGN.TXT — DESIGN SYSTEM TOKENS
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Primary Brand - Warm Restaurant Orange */
+  --color-primary: #E86A33;
+  --color-primary-hover: #CF5524;
+  --color-primary-soft: #FFF0E8;
+
+  /* Neutral Typography & Inks */
+  --color-ink: #202124;
+  --color-text: #4B5563;
+  --color-muted: #7B8491;
+
+  /* Backgrounds & Surfaces */
+  --color-bg: #F7F8FA;
+  --color-surface: #FFFFFF;
+  --color-border: #E7E9ED;
+
+  /* Status Colors */
+  --color-success: #21865B;
+  --color-success-soft: #E8F5EE;
+  --color-warning: #A96A12;
+  --color-warning-soft: #FFF4DE;
+  --color-danger: #C43D3D;
+  --color-danger-soft: #FCECEC;
+  --color-info: #2866A6;
+  --color-info-soft: #EAF2FC;
+
+  /* Layout Dimensions */
+  --sidebar-width: 76px;
+  --sidebar-expanded-width: 240px;
+  --cart-width: 340px;
+
+  /* Border Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 5px 20px rgba(31, 41, 55, 0.06);
+  --shadow-popover: 0 12px 35px rgba(31, 41, 55, 0.12);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Typography */
+  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}

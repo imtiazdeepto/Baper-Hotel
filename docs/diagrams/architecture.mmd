@@ -1,0 +1,58 @@
+flowchart TD
+    subgraph Client_Layer["Frontend Presentation Layer (Browser / Vanilla JS / Bootstrap 5)"]
+        CustomerUI["Customer Ordering UI<br>(Menu, Search, Cart, Checkout, Track)"]
+        StaffUI["Staff Kitchen Queue UI<br>(Real-time Tickets, Status Transitions)"]
+        AdminUI["Admin Portal UI<br>(Dashboard, Food Catalog, Storage, Reports)"]
+        StateModules["ES Modules<br>(supabaseClient.js, auth.js, cart.js, menu.js, admin.js)"]
+    end
+
+    subgraph Security_Boundary["Transport & Network Security (HTTPS / WSS / JWT)"]
+        PublicAnonKey["Supabase Public Anon Key<br>(Client-Safe Authorization)"]
+        JWTTokens["User Bearer Tokens (JWT)<br>(Auth Session State)"]
+    end
+
+    subgraph Supabase_Cloud["Managed Supabase Cloud Backend"]
+        AuthService["Supabase Auth Service<br>(User Sign-up, Password Hashing, Sessions)"]
+        PostgREST["PostgREST API Gateway<br>(REST endpoints for DB Tables)"]
+        StorageEngine["Supabase Storage Engine<br>(S3-compatible 'food-images' bucket)"]
+        
+        subgraph Database_Engine["PostgreSQL 15+ Engine"]
+            RLS["Row Level Security (RLS)<br>(Least-Privilege Role Policies)"]
+            
+            subgraph Stored_Procedures["Atomic PL/pgSQL Stored Procedures (RPC)"]
+                CreateOrderRPC["create_order()<br>(Atomic Validation & Snapshots)"]
+                ValidateCouponRPC["validate_coupon()<br>(Discount & Expiry Validation)"]
+                UpdateStatusRPC["update_order_status()<br>(Role-checked Transition & History Log)"]
+                GetReportRPC["get_daily_sales_report()<br>(Revenue & Discount Aggregation)"]
+            end
+
+            subgraph Relational_Tables["Relational Schema (NUMERIC Precision)"]
+                T_Profiles["profiles"]
+                T_Categories["categories"]
+                T_Foods["foods"]
+                T_Coupons["coupons"]
+                T_Orders["orders"]
+                T_OrderItems["order_items"]
+                T_CouponUsages["coupon_usages"]
+                T_OrderHistory["order_status_history"]
+            end
+        end
+    end
+
+    CustomerUI --> StateModules
+    StaffUI --> StateModules
+    AdminUI --> StateModules
+
+    StateModules --> PublicAnonKey
+    StateModules --> JWTTokens
+
+    PublicAnonKey --> PostgREST
+    JWTTokens --> AuthService
+    JWTTokens --> PostgREST
+    AdminUI --> StorageEngine
+
+    PostgREST --> RLS
+    RLS --> Relational_Tables
+
+    PostgREST --> Stored_Procedures
+    Stored_Procedures --> Relational_Tables

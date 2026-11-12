@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Menu — Baper Hotel</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Modular Design System CSS -->
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- 1. LEFT SLIM NAVIGATION SIDEBAR -->
+  <aside class="sidebar" aria-label="Main navigation">
+    <a class="brand" href="/" aria-label="Baper Hotel home">
+      <i class="fa-solid fa-utensils"></i>
+    </a>
+    <nav class="sidebar-nav">
+      <a class="nav-link is-active" href="/" aria-current="page" title="Food Menu">
+        <i class="fa-solid fa-bowl-food"></i>
+        <span>Menu</span>
+      </a>
+      <a class="nav-link" href="/order-history.html" title="My Orders">
+        <i class="fa-solid fa-receipt"></i>
+        <span>Orders</span>
+      </a>
+      <a class="nav-link" href="/track-order.html" title="Track Live Order">
+        <i class="fa-solid fa-location-dot"></i>
+        <span>Track</span>
+      </a>
+      <a class="nav-link" href="/staff/orders.html" title="Kitchen Queue">
+        <i class="fa-solid fa-kitchen-set text-info"></i>
+        <span>Kitchen</span>
+      </a>
+      <a class="nav-link" href="/admin/dashboard.html" title="Admin Portal">
+        <i class="fa-solid fa-gauge-high text-danger"></i>
+        <span>Admin</span>
+      </a>
+    </nav>
+    <button class="sidebar-logout" type="button" id="sidebarLogoutBtn" title="Sign Out">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      <span>Exit</span>
+    </button>
+  </aside>
+
+  <!-- 2. CENTRAL FOOD BROWSING AREA -->
+  <main class="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Freshly prepared for you</p>
+        <h1>Explore our menu</h1>
+        <p class="muted">Choose your favorites and place your order.</p>
+      </div>
+
+      <div class="topbar-actions">
+        <!-- Mobile Cart Toggle Button -->
+        <button class="button button-secondary d-lg-none position-relative" id="mobile-cart-toggle-btn" aria-label="Open cart">
+          <i class="fa-solid fa-cart-shopping me-1"></i> Cart
+          <span class="badge bg-danger cart-badge rounded-pill position-absolute top-0 start-100 translate-middle" style="display:none;">0</span>
+        </button>
+
+        <!-- Search input box -->
+        <label class="search-box">
+          <span class="visually-hidden">Search food</span>
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="search-food-input" type="search" placeholder="Search food by name, ingredients..." autocomplete="off">
+        </label>
+
+        <!-- Dynamic User Auth Section -->
+        <div id="navbar-auth-section"></div>
+      </div>
+    </header>
+
+    <!-- Categories Section -->
+    <section class="menu-section" aria-labelledby="categoryHeading">
+      <div class="section-heading">
+        <div>
+          <h2 id="categoryHeading">Categories</h2>
+          <p class="muted mb-0 small-text">Find something you are craving.</p>
+        </div>
+      </div>
+      <div class="category-list" id="category-filter-list" aria-label="Food categories">
+        <!-- Rendered by menu.js -->
+        <button type="button" class="category-chip is-active" data-cat-id="all">All Dishes</button>
+      </div>
+    </section>
+
+    <!-- Popular Menu Food Grid Section -->
+    <section class="menu-section" aria-labelledby="foodHeading">
+      <div class="section-heading">
+        <div>
+          <h2 id="foodHeading">Popular menu</h2>
+          <p class="muted mb-0 small-text" id="foodResultCount">Explore available dishes.</p>
+        </div>
+        <label class="sort-control" style="max-width: 180px;">
+          <span class="visually-hidden">Sort food</span>
+          <select id="foodSort">
+            <option value="popular">Popular</option>
+            <option value="price-asc">Price: Low to high</option>
+            <option value="price-desc">Price: High to low</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="food-grid" id="foods-grid-container" aria-live="polite">
+        <!-- Rendered dynamically by menu.js -->
+      </div>
+
+      <div class="empty-state" id="foodEmptyState" style="display:none;">
+        <h3>No food found</h3>
+        <p>Try another search or category.</p>
+      </div>
+    </section>
+
+    <!-- Smart Complementary Recommendations Section -->
+    <section class="recommendation-section" aria-labelledby="recommendationHeading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Picked for your order</p>
+          <h2 id="recommendationHeading">Recommended for you</h2>
+          <p class="muted mb-0 small-text">Popular and complementary items based on your cart.</p>
+        </div>
+      </div>
+      <div class="recommendation-grid" id="cart-recommendations-section" aria-live="polite">
+        <!-- Rendered by cart.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- 3. RIGHT ORDER / CART PANEL -->
+  <aside class="cart-panel" id="order-sidebar" aria-labelledby="cartHeading">
+    <div class="cart-header">
+      <div>
+        <p class="eyebrow">Your selection</p>
+        <h2 id="cartHeading" class="mb-0">My Order <span class="badge bg-primary rounded-pill cart-badge" style="display:none;">0</span></h2>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="button button-secondary py-1 px-2 small-text" type="button" id="clearCartButton" aria-label="Clear cart">Clear</button>
+        <button class="btn-close d-lg-none" id="close-mobile-cart-btn" aria-label="Close"></button>
+      </div>
+    </div>
+
+    <div class="order-type-control">
+      <label for="orderType" class="small fw-bold text-muted mb-1 d-block">Order type</label>
+      <select id="orderType">
+        <option value="Dine In" selected>🍽️ Dine In (Table Service)</option>
+        <option value="Pickup">🛍️ Pickup (Takeaway Counter)</option>
+        <option value="Delivery">🛵 Delivery (Doorstep)</option>
+      </select>
+    </div>
+
+    <!-- Empty Cart State -->
+    <div id="cart-empty-state" class="empty-state py-4 my-auto">
+      <i class="fa-solid fa-bag-shopping text-muted fs-2 mb-2 d-block"></i>
+      <h6 class="fw-bold text-dark mb-1">Your cart is empty</h6>
+      <p class="small text-muted mb-0">Select items from the menu to build your order.</p>
+    </div>
+
+    <!-- Filled Cart Content -->
+    <div id="cart-filled-state" style="display:none; flex-direction:column; flex:1;">
+      <div class="cart-items" id="cart-items-container" aria-live="polite">
+        <!-- Rendered by menu.js -->
+      </div>
+
+      <!-- Coupon Row -->
+      <div class="mt-3" id="applied-coupon-pill">
+        <!-- Rendered by menu.js -->
+      </div>
+
+      <!-- Bill Summary -->
+      <div class="bill-summary">
+        <div class="price-row"><span>Subtotal</span><strong id="cart-subtotal-val">৳ 0.00</strong></div>
+        <div class="price-row"><span>Discount</span><strong id="cart-discount-val">৳ 0.00</strong></div>
+        <div class="price-row total-row"><span>Total</span><strong id="cart-total-val">৳ 0.00</strong></div>
+      </div>
+
+      <!-- Payment Method Selection -->
+      <fieldset class="payment-methods mt-3">
+        <legend class="small-text">Payment method (demo)</legend>
+        <label class="small"><input type="radio" name="quickPaymentMethod" value="Cash" checked> Cash on Delivery / Table</label>
+        <label class="small"><input type="radio" name="quickPaymentMethod" value="Debit Card"> Debit card (demo)</label>
+        <label class="small"><input type="radio" name="quickPaymentMethod" value="E-Wallet"> E-wallet (demo)</label>
+      </fieldset>
+
+      <a href="/checkout.html" class="button button-primary checkout-button mt-3 text-center" id="checkoutButton">
+        Continue to checkout
+      </a>
+      <p class="muted small-text text-center mt-2 mb-0">Card & e-wallet options are simulated for academic demo.</p>
+    </div>
+  </aside>
+</div>
+
+<!-- Bootstrap 5 Bundle JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Main Application Script -->
+<script type="module" src="/assets/js/menu.js"></script>
+</body>
+</html>

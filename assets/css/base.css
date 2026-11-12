@@ -1,0 +1,77 @@
+/* ============================================================
+   DESIGN.TXT — BASE STYLES & RESETS
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6, p {
+  margin-top: 0;
+}
+
+h1 { font-size: clamp(1.5rem, 2.2vw, 1.9rem); line-height: 1.2; font-weight: 800; color: var(--color-ink); }
+h2 { font-size: 1.25rem; line-height: 1.3; font-weight: 700; color: var(--color-ink); }
+h3 { font-size: 1.08rem; line-height: 1.35; font-weight: 700; color: var(--color-ink); }
+
+.muted { color: var(--color-muted) !important; }
+.small-text { font-size: 0.78rem; }
+.eyebrow {
+  margin-bottom: 5px;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

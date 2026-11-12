@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout & Order Placement — Baper Hotel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="bg-light">
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top py-3">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+      <div class="brand-icon" style="width: 36px; height: 36px; font-size: 1rem;">
+        <i class="fa-solid fa-utensils"></i>
+      </div>
+      <span class="fw-bold text-dark">Baper Hotel</span>
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <a href="/cart.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to Cart
+      </a>
+      <div id="navbar-auth-section"></div>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-5">
+  <div class="row g-4">
+    <!-- Left: Order Form -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 p-4 p-sm-5 bg-white">
+        <h4 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-truck-ramp-box text-primary me-2"></i>Checkout & Delivery Details</h4>
+        <p class="text-muted small mb-4">Please provide your contact information and select dining preferences.</p>
+
+        <div id="checkout-error-alert" class="alert alert-danger small rounded-3 mb-4" style="display:none;"></div>
+
+        <form id="checkout-form">
+          <!-- 1. Order Type -->
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-dark">Dining / Fulfillment Method</label>
+            <select id="checkout-order-type" class="form-select rounded-3 py-2">
+              <option value="Dine In" selected>🍽️ Dine In (Table Service)</option>
+              <option value="Pickup">🛍️ Pickup (Takeaway Counter)</option>
+              <option value="Delivery">🛵 Delivery (Doorstep Service)</option>
+            </select>
+          </div>
+
+          <!-- 2. Customer Contact -->
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label for="checkout-name" class="form-label small fw-bold text-dark">Full Name *</label>
+              <input type="text" id="checkout-name" class="form-control rounded-3" placeholder="e.g. John Doe" required>
+            </div>
+            <div class="col-sm-6">
+              <label for="checkout-phone" class="form-label small fw-bold text-dark">Phone Number *</label>
+              <input type="tel" id="checkout-phone" class="form-control rounded-3" placeholder="+880 1700-000000" required>
+            </div>
+          </div>
+
+          <!-- 3. Delivery Address (Dynamic) -->
+          <div class="mb-3" id="delivery-address-group" style="display:none;">
+            <label for="checkout-address" class="form-label small fw-bold text-dark">Delivery Address *</label>
+            <textarea id="checkout-address" class="form-control rounded-3" rows="2" placeholder="House #, Road #, Area, City (e.g. House 14, Road 5, Dhanmondi, Dhaka)"></textarea>
+          </div>
+
+          <!-- 4. Special Kitchen Instructions -->
+          <div class="mb-4">
+            <label for="checkout-notes" class="form-label small fw-bold text-dark">Special Instructions / Allergies (Optional)</label>
+            <input type="text" id="checkout-notes" class="form-control rounded-3" placeholder="e.g. Less spicy, extra napkins, table #4">
+          </div>
+
+          <!-- 5. Payment Methods Selection -->
+          <div class="mb-4 pt-3 border-top">
+            <label class="form-label small fw-bold text-dark mb-3">Select Payment Method</label>
+            
+            <div class="row g-3">
+              <div class="col-sm-4">
+                <label class="payment-method-card p-3 border rounded-3 w-100 d-block cursor-pointer text-center">
+                  <input type="radio" name="payment_method" value="Cash" checked class="form-check-input mb-2">
+                  <div class="fw-bold small text-dark"><i class="fa-solid fa-money-bill-wave text-success me-1"></i> Cash</div>
+                  <div class="text-muted" style="font-size: 0.72rem;">On Delivery / Table</div>
+                </label>
+              </div>
+
+              <div class="col-sm-4">
+                <label class="payment-method-card p-3 border rounded-3 w-100 d-block cursor-pointer text-center">
+                  <input type="radio" name="payment_method" value="Debit Card" class="form-check-input mb-2">
+                  <div class="fw-bold small text-dark"><i class="fa-solid fa-credit-card text-primary me-1"></i> Debit Card</div>
+                  <div class="text-muted" style="font-size: 0.72rem;">Visa / Mastercard</div>
+                </label>
+              </div>
+
+              <div class="col-sm-4">
+                <label class="payment-method-card p-3 border rounded-3 w-100 d-block cursor-pointer text-center">
+                  <input type="radio" name="payment_method" value="E-Wallet" class="form-check-input mb-2">
+                  <div class="fw-bold small text-dark"><i class="fa-solid fa-mobile-screen-button text-danger me-1"></i> E-Wallet</div>
+                  <div class="text-muted" style="font-size: 0.72rem;">bKash / Nagad</div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Card Simulation Fields -->
+            <div id="card-details-section" class="mt-3 p-3 bg-light rounded-3 border" style="display:none;">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="small fw-bold text-dark"><i class="fa-solid fa-shield-halved text-primary me-1"></i>Simulated Card Payment</span>
+                <span class="badge bg-warning text-dark">Demo Mode</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-12">
+                  <input type="text" class="form-control form-control-sm" placeholder="Card Number: 4532 •••• •••• 8890" value="4532 9988 1234 8890">
+                </div>
+                <div class="col-6">
+                  <input type="text" class="form-control form-control-sm" placeholder="MM/YY" value="12/28">
+                </div>
+                <div class="col-6">
+                  <input type="password" class="form-control form-control-sm" placeholder="CVV" value="789">
+                </div>
+              </div>
+              <div class="text-muted mt-2" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>No real payment gateway is charged; simulated for academic capstone demonstration.</div>
+            </div>
+
+            <!-- E-Wallet Simulation Fields -->
+            <div id="wallet-details-section" class="mt-3 p-3 bg-light rounded-3 border" style="display:none;">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="small fw-bold text-dark"><i class="fa-solid fa-wallet text-danger me-1"></i>Simulated Mobile Wallet (bKash/Nagad)</span>
+                <span class="badge bg-warning text-dark">Demo Mode</span>
+              </div>
+              <input type="text" class="form-control form-control-sm mb-2" placeholder="Wallet Account: 017XXXXXXXX" value="01712345678">
+              <input type="password" class="form-control form-control-sm" placeholder="Wallet PIN: ••••" value="1234">
+              <div class="text-muted mt-2" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Demo simulation only. Order will be marked Paid upon confirmation.</div>
+            </div>
+          </div>
+
+          <button type="submit" id="place-order-btn" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm fs-6">
+            <i class="fa-solid fa-lock me-2"></i>Confirm & Place Order
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right: Order Summary Breakdown -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 p-4 bg-white sticky-top" style="top: 90px;">
+        <h5 class="fw-bold mb-3 text-dark">Order Items Summary</h5>
+        
+        <div id="checkout-items-list" class="mb-3" style="max-height: 320px; overflow-y: auto;">
+          <!-- Populated by checkout.js -->
+        </div>
+
+        <div class="d-flex justify-content-between small text-muted mb-2">
+          <span>Subtotal</span>
+          <span class="fw-semibold text-dark" id="checkout-subtotal">৳ 0.00</span>
+        </div>
+        
+        <div class="d-flex justify-content-between small text-success mb-2" id="checkout-discount-row" style="display:none;">
+          <span>Coupon Discount</span>
+          <span class="fw-semibold" id="checkout-discount">- ৳ 0.00</span>
+        </div>
+
+        <div class="d-flex justify-content-between small text-muted mb-3">
+          <span>Delivery Charge</span>
+          <span class="text-success fw-bold">FREE (Promotion)</span>
+        </div>
+
+        <hr>
+
+        <div class="d-flex justify-content-between fs-5 fw-bold text-dark mb-4">
+          <span>Total Payable</span>
+          <span class="text-primary" id="checkout-total">৳ 0.00</span>
+        </div>
+
+        <div class="p-3 bg-light rounded-3 text-muted small">
+          <div class="fw-semibold text-dark mb-1"><i class="fa-solid fa-shield-check text-success me-1"></i>Atomic Database Validation</div>
+          Prices and coupons are revalidated server-side in PostgreSQL. Snapshots of item names and prices are preserved permanently.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="/assets/js/checkout.js"></script>
+</body>
+</html>

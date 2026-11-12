@@ -1,0 +1,110 @@
+erDiagram
+    PROFILES ||--o{ ORDERS : "places"
+    CATEGORIES ||--o{ FOODS : "categorizes"
+    ORDERS ||--|{ ORDER_ITEMS : "contains"
+    FOODS ||--o{ ORDER_ITEMS : "referenced_in"
+    COUPONS ||--o{ ORDERS : "applied_to"
+    COUPONS ||--o{ COUPON_USAGES : "tracked_in"
+    PROFILES ||--o{ COUPON_USAGES : "redeems"
+    ORDERS ||--o{ COUPON_USAGES : "uses"
+    ORDERS ||--|{ ORDER_STATUS_HISTORY : "logs"
+    PROFILES ||--o{ ORDER_STATUS_HISTORY : "changed_by"
+
+    PROFILES {
+        uuid id PK
+        string full_name
+        string email
+        string phone
+        string role
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    CATEGORIES {
+        uuid id PK
+        string name UK
+        string slug UK
+        string description
+        string image_url
+        int display_order
+        timestamptz created_at
+    }
+
+    FOODS {
+        uuid id PK
+        uuid category_id FK
+        string name
+        string description
+        numeric price
+        string image_url
+        boolean is_available
+        boolean is_featured
+        int preparation_time_minutes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    COUPONS {
+        uuid id PK
+        string code UK
+        string description
+        string discount_type
+        numeric discount_value
+        numeric minimum_order_amount
+        numeric maximum_discount
+        int usage_limit
+        int used_count
+        timestamptz start_date
+        timestamptz expiry_date
+        boolean is_active
+        timestamptz created_at
+    }
+
+    ORDERS {
+        uuid id PK
+        string order_number UK
+        uuid user_id FK
+        string order_type
+        numeric subtotal
+        numeric discount_amount
+        numeric total_amount
+        uuid coupon_id FK
+        string payment_method
+        string payment_status
+        string order_status
+        string customer_name
+        string phone
+        string delivery_address
+        string notes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    ORDER_ITEMS {
+        uuid id PK
+        uuid order_id FK
+        uuid food_id FK
+        string food_name_snapshot
+        numeric unit_price
+        int quantity
+        numeric line_total
+        timestamptz created_at
+    }
+
+    COUPON_USAGES {
+        uuid id PK
+        uuid coupon_id FK
+        uuid user_id FK
+        uuid order_id FK
+        timestamptz used_at
+    }
+
+    ORDER_STATUS_HISTORY {
+        uuid id PK
+        uuid order_id FK
+        string old_status
+        string new_status
+        uuid changed_by FK
+        timestamptz changed_at
+        string note
+    }

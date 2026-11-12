@@ -1,0 +1,903 @@
+DESIGN.TXT — COMPLETE UI/UX AND FRONTEND IMPLEMENTATION SPECIFICATION
+Restaurant Food Ordering and Management System SE331 — Software
+Engineering Design Capstone Project Frontend: HTML5 + CSS3 + Bootstrap
+5 + Vanilla JavaScript Backend integration: Supabase (specified
+separately in prompt_supabase.txt)
+
+============================================================ 0.
+INSTRUCTIONS TO THE AI CODING AGENT
+============================================================
+
+You are a senior UI/UX designer and frontend engineer. Use this file as
+the definitive visual and frontend implementation guide for the
+Restaurant Food Ordering and Management System.
+
+Build the actual frontend using semantic HTML5, modern CSS3, Bootstrap 5
+utilities/components where useful, and vanilla JavaScript ES modules. Do
+not create only a Figma-style description or static screenshot.
+Implement working responsive pages and reusable UI components.
+
+Read the assessment screenshots supplied by the user. The main ordering
+page should closely follow the visual structure: - Slim vertical
+navigation sidebar on the left. - Main food browsing area in the
+center. - Shopping cart/order summary panel on the right. - Restaurant
+name, search bar, category filters, food cards. - Checkout and payment
+controls in the cart panel.
+
+Use the screenshots as layout inspiration, not as an exact pixel-perfect
+specification. Improve readability, spacing, contrast, responsiveness,
+accessibility, and consistency.
+
+The design should feel like a clean modern restaurant ordering
+dashboard. Avoid overdesign, excessive gradients, excessive animation,
+tiny text, and unnecessary decorative elements.
+
+The application must be fully usable on desktop, tablet, and mobile.
+
+If this file conflicts with the core assessment requirements or Supabase
+security requirements, the assessment and security requirements take
+priority.
+
+============================================================ 1. DESIGN
+GOALS ============================================================
+
+Primary goals: 1. Make browsing and ordering food simple and fast. 2.
+Make the cart and total bill easy to understand. 3. Make order status
+easy to follow. 4. Make admin tasks clear and efficient. 5. Make the
+interface responsive and accessible. 6. Keep visual design consistent
+across every page. 7. Make the project look polished enough for a
+university capstone demonstration.
+
+Design principles: - Clarity over decoration. - Consistency over
+novelty. - Strong visual hierarchy. - Visible feedback after every
+important action. - Minimal steps to complete an order. - Never hide
+important prices, status, errors, or actions. - Use real HTML text and
+controls rather than text embedded in images.
+
+============================================================ 2. VISUAL
+IDENTITY AND DESIGN TOKENS
+============================================================
+
+Use a warm restaurant-inspired palette with a restrained orange accent.
+
+Suggested CSS variables:
+
+:root { –color-primary: #E86A33; –color-primary-hover: #CF5524;
+–color-primary-soft: #FFF0E8;
+
+–color-ink: #202124; –color-text: #4B5563; –color-muted: #7B8491;
+
+–color-bg: #F7F8FA; –color-surface: #FFFFFF; –color-border: #E7E9ED;
+
+–color-success: #21865B; –color-success-soft: #E8F5EE; –color-warning:
+#A96A12; –color-warning-soft: #FFF4DE; –color-danger: #C43D3D;
+–color-danger-soft: #FCECEC; –color-info: #2866A6; –color-info-soft:
+#EAF2FC;
+
+–sidebar-width: 76px; –cart-width: 320px;
+
+–radius-sm: 8px; –radius-md: 12px; –radius-lg: 18px; –radius-xl: 24px;
+
+–shadow-card: 0 5px 20px rgba(31, 41, 55, 0.06); –shadow-popover: 0 12px
+35px rgba(31, 41, 55, 0.12);
+
+–space-1: 4px; –space-2: 8px; –space-3: 12px; –space-4: 16px; –space-5:
+20px; –space-6: 24px; –space-8: 32px; –space-10: 40px; }
+
+Typography: - Use Inter, system-ui, -apple-system, BlinkMacSystemFont,
+“Segoe UI”, sans-serif. - Main page title: 24–30px, bold. - Section
+title: 18–20px, semibold. - Food title: 15–17px, semibold. - Body text:
+14–16px. - Supporting text: 12–13px. - Prices: 16–18px, semibold. -
+Avoid body text below 12px.
+
+Use one consistent icon family, such as Bootstrap Icons or Font Awesome.
+Do not mix multiple icon libraries. Include accessible labels for
+icon-only buttons.
+
+============================================================ 3. SPACING,
+GRID, AND RESPONSIVE BREAKPOINTS
+============================================================
+
+Desktop (>= 1200px): - Left sidebar: approximately 76px fixed width. -
+Main content: flexible. - Right cart: approximately 320px fixed width. -
+Main page horizontal padding: 28–36px. - Food grid: 3 columns, or 4 when
+the viewport is wide enough. - Main content and cart should fit without
+horizontal scrolling.
+
+Tablet (768px–1199px): - Sidebar: 64px or collapsible. - Cart:
+collapsible drawer or a separate cart section. - Food grid: 2 columns. -
+Reduce main content padding to 20px.
+
+Mobile (< 768px): - Use a compact top navigation or bottom navigation. -
+Main content uses one food-card column or two columns only when cards
+remain readable. - Cart becomes a dedicated page or slide-up drawer. -
+Checkout fields stack vertically. - Buttons should have touch targets of
+at least 44x44px. - No horizontal page scrolling. - Keep important
+actions visible and easy to tap.
+
+Use CSS Grid and Flexbox. Avoid fixed widths that break small screens.
+Use max-width and minmax() where appropriate.
+
+============================================================ 4. REQUIRED
+PAGE LIST AND DESIGN SPECIFICATIONS
+============================================================
+
+A. CUSTOMER FOOD MENU — MOST IMPORTANT PAGE
+
+Desktop structure: 1. Left vertical sidebar: - Restaurant logo/brand
+mark. - Home/menu link. - Orders link. - Favorites link (optional). -
+Profile/settings link. - Logout action near bottom. - Active item
+highlighted with soft primary background.
+
+2.  Main content header:
+    -   Greeting or restaurant name.
+    -   Small supporting text such as “Choose something delicious”.
+    -   Search input with search icon.
+    -   Optional notification/profile controls.
+3.  Category filter:
+    -   Horizontal scrollable chips.
+    -   “All” selected by default.
+    -   Pizza, Fast Food, Noodles, Dessert, Seafood, Sushi, Ramen.
+    -   Selected chip uses primary color or soft primary background.
+    -   Filters must work with search.
+4.  Food grid:
+    -   Food image at top, consistent aspect ratio around 4:3 or 1:1.
+    -   Food name.
+    -   Short description, limited to 2 lines.
+    -   Price.
+    -   Optional rating.
+    -   Add to cart button.
+    -   Favorite icon only if it has a real working feature.
+    -   Unavailable food should show an “Unavailable” state and disabled
+        add button.
+5.  Right cart panel:
+    -   “My Order” heading.
+    -   Dine In / Pickup / Delivery selection if supported.
+    -   Cart items with thumbnail, name, unit price, quantity controls,
+        remove action.
+    -   Subtotal.
+    -   Coupon field and Apply action.
+    -   Discount line.
+    -   Final total.
+    -   Payment method choices: Cash, Debit Card, E-Wallet.
+    -   Checkout button.
+    -   Clearly label simulated payments if no real gateway is
+        integrated.
+6.  Recommendation section:
+    -   Heading: “Recommended for you”.
+    -   Show 3–5 compact food cards.
+    -   Each item shows image, name, price, reason (e.g. “Often ordered
+        with pizza” or “Popular choice”), and Add button.
+    -   Exclude food already in the cart and unavailable food.
+    -   Recommendations must be driven by the recommendation logic in
+        the Supabase prompt, not hardcoded random items.
+    -   On narrow screens, show recommendations below the menu or cart.
+
+B. CART PAGE - Clear page heading and continue-shopping link. - List
+each item with thumbnail, name, price, quantity controls, line total,
+remove button. - Coupon input with validation feedback. - Order summary
+card with subtotal, discount, and final total. - Checkout CTA. -
+Empty-cart illustration/icon and “Browse menu” CTA. - Ensure quantity
+changes update the displayed bill.
+
+C. CHECKOUT PAGE - Page title and simple step indicator: Cart → Checkout
+→ Confirmation. - Customer name and phone. - Order type selection: Dine
+In, Pickup, Delivery (as configured). - Delivery address appears only
+for Delivery. - Optional order notes. - Payment selection. - Order
+summary at the side on desktop and below form on mobile. - Show final
+total prominently. - Submit button label: “Place Order”. - Show loading
+state during submission and prevent repeated clicks. - Never imply
+card/e-wallet payment is real if only simulated.
+
+D. ORDER CONFIRMATION PAGE - Clear success icon/state. - “Your order has
+been placed”. - Unique order number. - Order summary. - Current order
+status. - “Track Order” and “Back to Menu” actions. - Do not show
+success until Supabase confirms order creation.
+
+E. ORDER TRACKING PAGE - Order number and order date. - Status timeline:
+Pending → Confirmed → Preparing → Ready → Out for Delivery (if delivery)
+→ Completed. - Cancelled state should be visually distinct. - Show item
+list, total, payment method, and order type. - Refresh status from
+Supabase or provide a refresh action. - Customers can only view their
+own orders.
+
+F. CUSTOMER ORDER HISTORY PAGE - Table/list of previous orders. -
+Columns/cards: order number, date, total, status, action. - Filters by
+status/date if practical. - Empty state for new customers. - Order
+detail action.
+
+G. LOGIN AND REGISTRATION PAGES - Simple centered form or split-screen
+layout. - Restaurant branding and short welcome text. - Email and
+password fields. - Register also asks name and phone if needed. - Show
+password visibility toggle. - Inline validation and authentication
+errors. - Link between login and registration. - Do not ask users to
+select their own role. - Include accessible labels, not placeholder-only
+labels.
+
+H. ADMIN DASHBOARD - Admin sidebar with Dashboard, Foods, Categories,
+Orders, Coupons, Reports, Logout. - Header with page title and admin
+profile. - Summary cards: - Today’s orders. - Completed orders. -
+Revenue. - Pending orders. - Recent orders table. - Sales chart if
+useful. - Clear loading and no-data states. - Do not show fabricated
+statistics; read actual Supabase data.
+
+I. FOOD MANAGEMENT - Table or responsive list with food image, name,
+category, price, availability, actions. - Search and category filter. -
+Add Food button. - Add/edit form: - Name. - Description. - Category. -
+Price. - Image upload. - Availability. - Image preview before upload. -
+Confirm destructive actions. - Use soft deletion/deactivation where
+historical orders must be preserved.
+
+J. CATEGORY MANAGEMENT - Category list. - Add/edit category form. -
+Delete only when safe; explain if foods are assigned. - Prevent
+duplicate category names.
+
+K. ORDER MANAGEMENT - Tabs or filters for Pending, Confirmed, Preparing,
+Ready, Completed, Cancelled. - Order table with order number, customer,
+date, amount, type, status, and details action. - Order details
+drawer/page with ordered items and status controls. - Staff should see
+only permitted actions. - Show status update confirmation and error
+feedback.
+
+L. COUPON MANAGEMENT - Coupon table with code, type, value, expiry,
+usage, active state. - Add/edit coupon form. - Clear active/expired
+indicators. - Validate percentage and fixed discounts.
+
+M. DAILY SALES REPORT - Date picker. - Summary metrics. - Daily sales
+chart. - Detailed order table. - Clearly distinguish completed/paid
+sales from pending orders. - Use real Supabase values.
+
+============================================================ 5.
+COMPONENT LIBRARY — BUILD REUSABLE COMPONENTS
+============================================================
+
+Create reusable HTML/CSS patterns for: - Sidebar navigation. - Topbar. -
+Page heading. - Search input. - Category chip. - Food card. - Cart
+item. - Quantity control. - Price row. - Coupon input. -
+Primary/secondary/danger buttons. - Status badge. - Metric card. - Data
+table. - Modal/dialog. - Toast notification. - Form field. - Empty
+state. - Loading skeleton. - Error message. - Recommendation card. -
+Order status timeline.
+
+Use consistent class names and avoid writing different styles for the
+same component on every page.
+
+============================================================ 6.
+INTERACTION AND MICRO-INTERACTION REQUIREMENTS
+============================================================
+
+Every visible interactive element must work.
+
+Examples: - Clicking category chips filters food. - Search filters the
+food list. - Add to cart updates cart count and cart content. - Quantity
+plus/minus updates line total and bill. - Remove deletes the cart
+item. - Applying coupon displays success or a useful error. - Checkout
+validates the form. - Buttons show loading state during network calls. -
+Successful actions show a toast or inline success message. - Failed
+requests show a useful error message. - Sidebar links navigate
+correctly. - Mobile navigation opens/closes correctly. - Modal/dialog
+can be closed with close button and Escape where practical. - Focus is
+visible for keyboard users.
+
+Do not use alert() for every interaction. Prefer accessible inline
+feedback or toast messages.
+
+Do not add inert buttons. If a feature is not implemented, do not
+display a button suggesting it works.
+
+============================================================ 7.
+ACCESSIBILITY REQUIREMENTS
+============================================================
+
+-   Use semantic HTML: header, nav, main, aside, section, footer, form.
+-   Use labels for all form controls.
+-   Provide alt text for meaningful food images.
+-   Use aria-label for icon-only controls.
+-   Maintain sufficient color contrast.
+-   Do not use color alone to communicate order status.
+-   Ensure keyboard navigation works.
+-   Provide visible focus styles.
+-   Use correct button types.
+-   Announce important dynamic cart/status updates with appropriate
+    aria-live regions.
+-   Respect prefers-reduced-motion.
+-   Keep touch targets large enough on mobile.
+
+============================================================ 8. FRONTEND
+FILE STRUCTURE
+============================================================
+
+Recommended structure:
+
+restaurant-ordering-system/ index.html login.html register.html
+cart.html checkout.html order-confirmation.html track-order.html
+order-history.html
+
+admin/ dashboard.html foods.html food-form.html categories.html
+orders.html coupons.html reports.html
+
+staff/ orders.html
+
+assets/ css/ tokens.css base.css layout.css components.css customer.css
+admin.css responsive.css js/ config.js supabaseClient.js auth.js menu.js
+cart.js checkout.js orders.js recommendations.js admin.js staff.js ui.js
+images/ logo.svg food-placeholder.svg
+
+supabase/ schema.sql seed.sql policies.sql functions.sql
+storage_policies.sql
+
+docs/ SRS.md TEST_PLAN.md DESIGN.md
+
+.env.example .gitignore README.md
+
+You may use a simpler structure if the existing project already has one.
+Keep CSS separated into tokens, base, layout, components, and responsive
+styles. Do not put all styles in one giant inline style block.
+
+============================================================ 9. STARTER
+HTML STRUCTURE — CUSTOMER MENU PAGE
+============================================================
+
+Use this as the semantic structure for the main menu page. Expand it
+into a complete working page and connect all dynamic content to
+Supabase.
+
+<!doctype html>
+Food Menu | Restaurant
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="index.html" aria-label="Restaurant home">R</a>
+      <nav class="sidebar-nav">
+        <a class="nav-link is-active" href="index.html" aria-current="page">Menu</a>
+        <a class="nav-link" href="order-history.html">My Orders</a>
+        <a class="nav-link" href="track-order.html">Track Order</a>
+        <a class="nav-link" href="profile.html">Profile</a>
+      </nav>
+      <button class="sidebar-logout" type="button" id="logoutButton">Log out</button>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Freshly prepared for you</p>
+          <h1>Explore our menu</h1>
+          <p class="muted">Choose your favorites and place your order.</p>
+        </div>
+        <div class="topbar-actions">
+          <label class="search-box">
+            <span class="visually-hidden">Search food</span>
+            <input id="foodSearch" type="search" placeholder="Search food..." autocomplete="off">
+          </label>
+          <button class="avatar-button" type="button" id="profileButton" aria-label="Open profile">U</button>
+        </div>
+      </header>
+
+      <section class="menu-section" aria-labelledby="categoryHeading">
+        <div class="section-heading">
+          <div>
+            <h2 id="categoryHeading">Categories</h2>
+            <p class="muted">Find something you are craving.</p>
+          </div>
+        </div>
+        <div class="category-list" id="categoryList" aria-label="Food categories">
+          <!-- Render category buttons from Supabase -->
+        </div>
+      </section>
+
+      <section class="menu-section" aria-labelledby="foodHeading">
+        <div class="section-heading">
+          <div>
+            <h2 id="foodHeading">Popular menu</h2>
+            <p class="muted" id="foodResultCount">Explore available dishes.</p>
+          </div>
+          <label class="sort-control">
+            <span class="visually-hidden">Sort food</span>
+            <select id="foodSort">
+              <option value="popular">Popular</option>
+              <option value="price-asc">Price: Low to high</option>
+              <option value="price-desc">Price: High to low</option>
+              <option value="name">Name</option>
+            </select>
+          </label>
+        </div>
+        <div class="food-grid" id="foodGrid" aria-live="polite">
+          <!-- Render food cards from Supabase -->
+        </div>
+        <div class="empty-state" id="foodEmptyState" hidden>
+          <h3>No food found</h3>
+          <p>Try another search or category.</p>
+        </div>
+      </section>
+
+      <section class="recommendation-section" aria-labelledby="recommendationHeading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Picked for your order</p>
+            <h2 id="recommendationHeading">Recommended for you</h2>
+            <p class="muted">Popular and complementary items based on your cart.</p>
+          </div>
+        </div>
+        <div class="recommendation-grid" id="recommendationGrid" aria-live="polite">
+          <!-- Render Supabase recommendation RPC results -->
+        </div>
+      </section>
+    </main>
+
+    <aside class="cart-panel" aria-labelledby="cartHeading">
+      <div class="cart-header">
+        <div>
+          <p class="eyebrow">Your selection</p>
+          <h2 id="cartHeading">My Order <span id="cartCount">0</span></h2>
+        </div>
+        <button class="icon-button" type="button" id="clearCartButton" aria-label="Clear cart">Clear</button>
+      </div>
+
+      <div class="order-type-control">
+        <label for="orderType">Order type</label>
+        <select id="orderType">
+          <option value="dine_in">Dine In</option>
+          <option value="pickup">Pickup</option>
+          <option value="delivery">Delivery</option>
+        </select>
+      </div>
+
+      <div class="cart-items" id="cartItems" aria-live="polite">
+        <!-- Render cart items -->
+      </div>
+
+      <div class="coupon-row">
+        <label class="visually-hidden" for="couponCode">Coupon code</label>
+        <input id="couponCode" type="text" placeholder="Enter coupon code">
+        <button class="button button-secondary" type="button" id="applyCouponButton">Apply</button>
+      </div>
+      <p class="field-message" id="couponMessage" aria-live="polite"></p>
+
+      <div class="bill-summary">
+        <div class="price-row"><span>Subtotal</span><strong id="subtotal">৳0.00</strong></div>
+        <div class="price-row"><span>Discount</span><strong id="discount">−৳0.00</strong></div>
+        <div class="price-row total-row"><span>Total</span><strong id="total">৳0.00</strong></div>
+      </div>
+
+      <fieldset class="payment-methods">
+        <legend>Payment method</legend>
+        <label><input type="radio" name="paymentMethod" value="cash" checked> Cash</label>
+        <label><input type="radio" name="paymentMethod" value="debit_card"> Debit card (demo)</label>
+        <label><input type="radio" name="paymentMethod" value="e_wallet"> E-wallet (demo)</label>
+      </fieldset>
+
+      <button class="button button-primary checkout-button" type="button" id="checkoutButton">
+        Continue to checkout
+      </button>
+      <p class="muted small-text">Card and e-wallet options are demonstrations unless a real payment provider is configured.</p>
+    </aside>
+
+Notes: - The profile.html page is optional; if it is not implemented, do
+not leave a dead link. - Use actual accessible buttons for categories
+and add-to-cart. - The starter markup is a scaffold, not a complete
+application. Implement the missing render logic and event handlers. -
+Never put secrets in HTML or JavaScript.
+
+============================================================ 10. STARTER
+CSS — DESIGN SYSTEM AND MENU LAYOUT
+============================================================
+
+Create the following base stylesheet and expand it as needed. Split it
+across the CSS files listed above if that is cleaner.
+
+TOKENS.CSS:
+
+:root { color-scheme: light; –color-primary: #E86A33;
+–color-primary-hover: #CF5524; –color-primary-soft: #FFF0E8; –color-ink:
+#202124; –color-text: #4B5563; –color-muted: #7B8491; –color-bg:
+#F7F8FA; –color-surface: #FFFFFF; –color-border: #E7E9ED;
+–color-success: #21865B; –color-warning: #A96A12; –color-danger:
+#C43D3D; –sidebar-width: 76px; –cart-width: 320px; –radius-sm: 8px;
+–radius-md: 12px; –radius-lg: 18px; –radius-xl: 24px; –shadow-card: 0
+5px 20px rgba(31, 41, 55, .06); –shadow-popover: 0 12px 35px rgba(31,
+41, 55, .12); –font-sans: Inter, system-ui, -apple-system,
+BlinkMacSystemFont, “Segoe UI”, sans-serif; }
+
+BASE.CSS:
+
+-   { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body { margin: 0; background: var(–color-bg); color: var(–color-ink);
+font-family: var(–font-sans); font-size: 15px; line-height: 1.5; }
+
+button, input, select, textarea { font: inherit; }
+
+button { cursor: pointer; }
+
+button:disabled { cursor: not-allowed; opacity: .55; }
+
+img { display: block; max-width: 100%; }
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3, p { margin-top: 0; }
+
+h1 { font-size: clamp(1.5rem, 2vw, 1.9rem); line-height: 1.2; } h2 {
+font-size: 1.2rem; line-height: 1.3; } h3 { font-size: 1rem;
+line-height: 1.35; }
+
+.muted { color: var(–color-muted); } .small-text { font-size: .78rem; }
+.eyebrow { margin-bottom: 5px; color: var(–color-primary); font-size:
+.75rem; font-weight: 700; letter-spacing: .06em; text-transform:
+uppercase; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding:
+0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space:
+nowrap; border: 0; }
+
+LAYOUT.CSS:
+
+.app-shell { display: grid; grid-template-columns: var(–sidebar-width)
+minmax(0, 1fr) var(–cart-width); min-height: 100vh; }
+
+.sidebar { position: sticky; top: 0; display: flex; height: 100vh;
+flex-direction: column; align-items: center; gap: 28px; padding: 22px
+10px; background: var(–color-surface); border-right: 1px solid
+var(–color-border); }
+
+.brand { display: grid; width: 42px; height: 42px; place-items: center;
+border-radius: 14px; background: var(–color-primary); color: #fff;
+font-size: 1.25rem; font-weight: 800; }
+
+.sidebar-nav { display: flex; width: 100%; flex-direction: column; gap:
+10px; }
+
+.nav-link { display: grid; min-height: 46px; place-items: center;
+border-radius: 12px; color: var(–color-muted); font-size: .8rem;
+text-align: center; }
+
+.nav-link:hover, .nav-link.is-active { background:
+var(–color-primary-soft); color: var(–color-primary); }
+
+.sidebar-logout { margin-top: auto; }
+
+.main-content { min-width: 0; padding: 30px clamp(18px, 3vw, 38px) 48px;
+}
+
+.topbar { display: flex; align-items: flex-start; justify-content:
+space-between; gap: 20px; margin-bottom: 34px; }
+
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+.cart-panel { position: sticky; top: 0; display: flex; height: 100vh;
+flex-direction: column; gap: 20px; overflow-y: auto; padding: 26px 20px;
+background: var(–color-surface); border-left: 1px solid
+var(–color-border); }
+
+.cart-header, .section-heading { display: flex; align-items: center;
+justify-content: space-between; gap: 16px; }
+
+.menu-section, .recommendation-section { margin-bottom: 34px; }
+
+COMPONENTS.CSS:
+
+.search-box input, .order-type-control select, .coupon-row input,
+.sort-control select, .form-control { width: 100%; min-height: 44px;
+padding: 10px 13px; color: var(–color-ink); background:
+var(–color-surface); border: 1px solid var(–color-border);
+border-radius: var(–radius-md); outline: none; }
+
+.search-box input:focus, .order-type-control select:focus, .coupon-row
+input:focus, .form-control:focus { border-color: var(–color-primary);
+box-shadow: 0 0 0 3px rgba(232, 106, 51, .13); }
+
+.category-list { display: flex; gap: 9px; overflow-x: auto; padding: 5px
+0 12px; }
+
+.category-chip { flex: 0 0 auto; min-height: 40px; padding: 8px 16px;
+color: var(–color-text); background: var(–color-surface); border: 1px
+solid var(–color-border); border-radius: 999px; }
+
+.category-chip:hover, .category-chip.is-active { color:
+var(–color-primary); background: var(–color-primary-soft); border-color:
+transparent; }
+
+.food-grid { display: grid; grid-template-columns: repeat(3, minmax(0,
+1fr)); gap: 18px; }
+
+.food-card { min-width: 0; overflow: hidden; background:
+var(–color-surface); border: 1px solid var(–color-border);
+border-radius: var(–radius-lg); box-shadow: var(–shadow-card); }
+
+.food-card-image { width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+background: #F0F1F3; }
+
+.food-card-body { padding: 14px; }
+
+.food-card-title { margin-bottom: 5px; font-size: 1rem; font-weight:
+700; }
+
+.food-card-description { min-height: 38px; margin-bottom: 12px; color:
+var(–color-muted); font-size: .82rem; }
+
+.food-card-footer { display: flex; align-items: center; justify-content:
+space-between; gap: 10px; }
+
+.food-price { font-size: 1.05rem; font-weight: 750; }
+
+.button { display: inline-flex; min-height: 42px; align-items: center;
+justify-content: center; gap: 8px; padding: 9px 14px; border: 1px solid
+transparent; border-radius: 10px; font-weight: 650; transition:
+background .18s ease, transform .18s ease; }
+
+.button:active { transform: translateY(1px); }
+
+.button-primary { color: #fff; background: var(–color-primary); }
+
+.button-primary:hover { background: var(–color-primary-hover); }
+
+.button-secondary { color: var(–color-ink); background:
+var(–color-surface); border-color: var(–color-border); }
+
+.button-secondary:hover { background: var(–color-bg); }
+
+.checkout-button { width: 100%; min-height: 48px; }
+
+.cart-items { display: flex; min-height: 80px; flex: 1; flex-direction:
+column; gap: 14px; }
+
+.cart-item { display: grid; grid-template-columns: 58px minmax(0, 1fr);
+gap: 11px; }
+
+.cart-item img { width: 58px; height: 58px; object-fit: cover;
+border-radius: 10px; }
+
+.price-row { display: flex; justify-content: space-between; gap: 12px;
+padding: 7px 0; color: var(–color-text); }
+
+.total-row { margin-top: 8px; padding-top: 14px; border-top: 1px solid
+var(–color-border); color: var(–color-ink); font-size: 1.08rem; }
+
+.bill-summary { margin-top: auto; }
+
+.coupon-row { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+gap: 8px; }
+
+.payment-methods { display: grid; gap: 10px; padding: 14px; border: 1px
+solid var(–color-border); border-radius: var(–radius-md); }
+
+.payment-methods legend { padding: 0 5px; font-weight: 700; }
+
+.recommendation-grid { display: grid; grid-template-columns: repeat(3,
+minmax(0, 1fr)); gap: 14px; }
+
+.recommendation-card { display: grid; grid-template-columns: 64px
+minmax(0, 1fr); gap: 12px; padding: 12px; background:
+var(–color-surface); border: 1px solid var(–color-border);
+border-radius: var(–radius-md); }
+
+.recommendation-card img { width: 64px; height: 64px; object-fit: cover;
+border-radius: 10px; }
+
+.status-badge { display: inline-flex; align-items: center; padding: 5px
+9px; border-radius: 999px; background: var(–color-info-soft); color:
+var(–color-info); font-size: .75rem; font-weight: 700; }
+
+.empty-state { padding: 34px 18px; color: var(–color-muted); text-align:
+center; background: var(–color-surface); border: 1px dashed
+var(–color-border); border-radius: var(–radius-lg); }
+
+.toast-region { position: fixed; right: 20px; bottom: 20px; z-index:
+1000; }
+
+RESPONSIVE.CSS:
+
+@media (max-width: 1199px) { :root { –cart-width: 290px; } .food-grid {
+grid-template-columns: repeat(2, minmax(0, 1fr)); } .recommendation-grid
+{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+@media (max-width: 900px) { .app-shell { grid-template-columns: 64px
+minmax(0, 1fr); } .cart-panel { position: static; grid-column: 2;
+height: auto; border-top: 1px solid var(–color-border); border-left: 0;
+} }
+
+@media (max-width: 600px) { .app-shell { display: block; } .sidebar {
+position: sticky; z-index: 20; top: 0; width: 100%; height: auto;
+flex-direction: row; justify-content: space-between; padding: 10px 14px;
+border-right: 0; border-bottom: 1px solid var(–color-border); }
+.sidebar-nav { width: auto; flex-direction: row; overflow-x: auto; }
+.nav-link { min-width: 62px; padding: 5px; } .sidebar-logout {
+margin-top: 0; } .main-content { padding: 22px 15px 30px; } .topbar {
+flex-direction: column; } .topbar-actions { width: 100%; } .search-box {
+flex: 1; } .food-grid { grid-template-columns: repeat(2, minmax(0,
+1fr)); gap: 11px; } .food-card-body { padding: 10px; }
+.food-card-description { font-size: .75rem; } .food-card-footer {
+align-items: flex-start; flex-direction: column; } .food-card-footer
+.button { width: 100%; } .recommendation-grid { grid-template-columns:
+1fr; } .cart-panel { padding: 20px 15px; } }
+
+@media (max-width: 360px) { .food-grid { grid-template-columns: 1fr; } }
+
+@media (prefers-reduced-motion: reduce) { , ::before, *::after {
+scroll-behavior: auto !important; animation-duration: .01ms !important;
+transition-duration: .01ms !important; } }
+
+Important: - Treat the CSS above as a starting point. Validate actual
+rendering in a browser. - Add focus-visible styles, disabled styles,
+skeletons, form validation styles, modal styles, and admin table
+styles. - If Bootstrap is loaded, avoid fighting Bootstrap with broad
+global overrides. - Do not rely on the starter CSS alone; complete the
+styles for every page.
+
+============================================================ 11. FOOD
+CARD DESIGN REQUIREMENTS
+============================================================
+
+Each food card should have: - Consistent food image size. - Optional
+category label. - Food name. - Short description. - Price in BDT. -
+Availability indicator. - Add to cart button. - Optional favorite action
+only if implemented.
+
+Image handling: - Use Supabase Storage image paths/URLs from the
+database. - Use object-fit: cover. - Use a placeholder if an image is
+missing. - Avoid distorted food photos. - Do not hotlink random images
+from unknown sources in production. - Add alt text based on the food
+name.
+
+============================================================ 12.
+RECOMMENDATION CARD DESIGN
+============================================================
+
+Each recommendation should display: - Food image. - Food name. -
+Price. - Short recommendation reason. - Add button.
+
+Examples of recommendation reasons: - “Often ordered with Onion Pizza” -
+“Popular this week” - “Customers also choose this”
+
+The UI must not claim that an item is frequently ordered unless the
+recommendation service provides that reason.
+
+The frontend should call the Supabase recommendation RPC described in
+the backend prompt. It should refresh recommendations when cart contents
+change, with a small debounce if necessary. It must not call the
+recommendation function on every keystroke or create unnecessary
+repeated requests.
+
+If the recommendation function returns no results, hide the section or
+show a polite fallback such as “More recommendations will appear as
+customers place orders.” Do not hardcode fake recommendation results.
+
+============================================================ 13. ADMIN
+VISUAL DESIGN
+============================================================
+
+Admin UI should use the same brand tokens but prioritize information
+density and clarity.
+
+Admin layout: - Left admin sidebar (wider than customer icon-only
+sidebar). - Topbar with page title and account menu. - Main content with
+consistent max-width. - Summary metric cards. - Tables with clear
+headers and row spacing. - Filters above tables. - Primary action in the
+top-right of each management page. - Forms in cards or dedicated
+pages. - Destructive actions require confirmation. - Status badges use
+both text and color.
+
+Avoid: - Too many dashboard cards. - Decorative charts with no business
+meaning. - Fake data. - Tables that overflow mobile screens without a
+responsive strategy. - Tiny text.
+
+For mobile admin tables, use horizontally scrollable containers or
+transform each row into a readable card layout.
+
+============================================================ 14. FORM
+DESIGN AND VALIDATION
+============================================================
+
+All forms must: - Have a visible label. - Show required fields. -
+Display field-specific validation errors. - Preserve entered values
+after recoverable errors. - Disable submit while saving. - Show
+success/error feedback. - Use correct input types and autocomplete
+attributes. - Use appropriate min/max constraints for prices,
+quantities, and dates. - Never use placeholder text as the only label.
+
+For image upload: - Show image preview. - Show allowed formats and size
+limit. - Show upload progress if possible. - Show upload failure. -
+Allow replacing/removing image if authorized.
+
+============================================================ 15.
+LOADING, EMPTY, ERROR, AND SUCCESS STATES
+============================================================
+
+Every Supabase-driven page must support: - Initial loading skeleton. -
+Empty state. - Error state with retry action where appropriate. -
+Success feedback after mutation. - Disabled/loading button while request
+is running. - Offline/network failure message where practical.
+
+Never leave a blank screen while data loads. Never show fake sample
+records as if they came from the live database. Seed data may be used
+for development, but label it as sample data.
+
+============================================================ 16.
+FRONTEND QUALITY AND PERFORMANCE
+============================================================
+
+-   Use semantic HTML.
+-   Keep JavaScript in ES modules.
+-   Keep Supabase client setup in one shared module.
+-   Avoid duplicate network requests.
+-   Debounce search input.
+-   Use event delegation where appropriate.
+-   Lazy-load food images below the fold.
+-   Set width/height or aspect-ratio to reduce layout shift.
+-   Avoid unnecessary dependencies.
+-   Keep CSS maintainable and organized.
+-   Avoid inline styles for repeated components.
+-   Use consistent naming conventions.
+-   Check browser console for errors.
+-   Test keyboard navigation.
+-   Test at common mobile widths.
+-   Do not store secrets in localStorage.
+-   Do not place service_role keys in browser code.
+
+============================================================ 17. VISUAL
+QA CHECKLIST
+============================================================
+
+Before declaring the UI complete, verify:
+
+[ ] Main menu matches the supplied screenshot’s three-zone layout on
+desktop. [ ] Sidebar is clear and active navigation is visible. [ ]
+Search field is easy to find and use. [ ] Category chips are readable
+and functional. [ ] Food cards have consistent image proportions. [ ]
+Prices are visually prominent. [ ] Add-to-cart buttons are easy to
+identify. [ ] Cart panel is easy to scan. [ ] Quantity controls are
+usable. [ ] Subtotal, discount, and total are clearly separated. [ ]
+Payment options are understandable. [ ] Recommendation section is
+visually distinct but not distracting. [ ] Order tracking timeline is
+understandable. [ ] Admin dashboard is consistent with customer design.
+[ ] Forms have labels and useful validation. [ ] Loading, empty, error,
+and success states exist. [ ] No dead buttons or placeholder links
+remain. [ ] Desktop layout has no horizontal overflow. [ ] Tablet layout
+works. [ ] Mobile layout works at 360px, 390px, and 430px widths. [ ]
+Keyboard focus is visible. [ ] Text contrast is sufficient. [ ]
+Reduced-motion preference is respected. [ ] Food images have useful alt
+text.
+
+============================================================ 18. HOW TO
+BUILD THE UI — REQUIRED WORK ORDER
+============================================================
+
+1.  Inspect the assessment screenshot and project files.
+2.  Define CSS tokens and typography.
+3.  Build the customer desktop shell: sidebar, main content, cart.
+4.  Build responsive tablet/mobile shell.
+5.  Build reusable buttons, inputs, cards, chips, badges, and tables.
+6.  Build the menu page with realistic seeded menu data during UI
+    development.
+7.  Connect menu and categories to Supabase.
+8.  Connect cart behavior and real totals.
+9.  Build recommendation cards and connect recommendation RPC.
+10. Build checkout and order confirmation.
+11. Build order tracking and history.
+12. Build authentication pages.
+13. Build admin dashboard and management pages.
+14. Add loading, empty, error, and success states.
+15. Run visual QA at desktop, tablet, and mobile sizes.
+16. Remove any mock data that is accidentally displayed as live data.
+17. Confirm every visible action works.
+
+Do not start by designing every page independently. Build a shared
+design system and shared layout first, then reuse it.
+
+============================================================ 19. FINAL
+HANDOFF ============================================================
+
+At the end, provide: 1. List of pages created. 2. List of reusable
+components created. 3. CSS files and what each contains. 4. JavaScript
+files and their responsibilities. 5. Screenshots of desktop and mobile
+UI if browser screenshot tools are available. 6. Responsive breakpoints
+tested. 7. Accessibility checks completed. 8. Any UI interactions still
+not implemented. 9. Instructions to run the frontend. 10. Confirmation
+that Supabase data is real or clearly marked as not yet configured.
+
+FINAL DESIGN PRIORITY: The main food ordering page must be polished,
+responsive, and close to the supplied assessment reference: left
+sidebar + central food menu + right cart. The design must support all
+required assessment workflows. Do not deliver only a landing page. Build
+the complete customer and admin interface, and make every visible
+control functional.

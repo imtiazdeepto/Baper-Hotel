@@ -1,0 +1,108 @@
+/* ============================================================
+   DESIGN.TXT — MASTER APPLICATION STYLESHEET
+   Aggregates tokens, base resets, layout, components & responsive
+   ============================================================ */
+
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './components.css';
+@import './responsive.css';
+
+/* Utility & Compatibility Overrides for Bootstrap elements */
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(232, 106, 51, 0.28);
+}
+
+.text-primary {
+  color: var(--color-primary) !important;
+}
+
+.bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+.border-primary {
+  border-color: var(--color-primary) !important;
+}
+
+.btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  color: #ffffff !important;
+}
+
+.btn-outline-primary {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.badge.bg-primary-subtle {
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Tracking Timeline styles */
+.tracking-timeline {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: 2rem 0;
+}
+
+.tracking-timeline::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background-color: #e2e8f0;
+  z-index: 1;
+}
+
+.timeline-step {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  flex: 1;
+}
+
+.step-circle {
+  width: 48px;
+  height: 48px;
+  font-size: 1.1rem;
+}
+
+.timeline-step.completed .step-circle {
+  background-color: var(--color-success) !important;
+  color: #fff !important;
+}
+
+.timeline-step.current .step-circle {
+  background-color: var(--color-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 5px rgba(232, 106, 51, 0.22) !important;
+}

@@ -1,0 +1,155 @@
+/* ============================================================
+   DESIGN.TXT — LAYOUT ARCHITECTURE (APP SHELL, SIDEBAR, CART)
+   ============================================================ */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--cart-width);
+  min-height: 100vh;
+  position: relative;
+  background-color: var(--color-bg);
+}
+
+/* 1. Left Vertical Slim Navigation Sidebar */
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 10px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  z-index: 1030;
+}
+
+.brand {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(232, 106, 51, 0.28);
+  text-decoration: none;
+}
+
+.sidebar-nav {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.nav-link i {
+  font-size: 1.2rem;
+}
+
+.nav-link:hover,
+.nav-link.is-active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.sidebar-logout {
+  margin-top: auto;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: var(--radius-md);
+  transition: color 0.2s ease;
+}
+
+.sidebar-logout:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+/* 2. Main Center Content */
+.main-content {
+  min-width: 0;
+  padding: 30px clamp(18px, 3vw, 38px) 48px;
+  overflow-y: auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-section,
+.recommendation-section {
+  margin-bottom: 34px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* 3. Right Cart / Order Panel */
+.cart-panel {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding: 24px 20px;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  z-index: 1020;
+}
+
+.cart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 14px;
+}
