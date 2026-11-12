@@ -7,6 +7,7 @@ import { supabase, isSupabaseConfigured, checkAndDisplayConfigNotice } from './s
 import { requireAuth, setupAuthNav } from './auth.js';
 import { formatCurrency } from './cart.js';
 import { APP_CONFIG } from './config.js';
+import { getDhakaDateString, getAllowedNextStatuses } from './appLogic.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   checkAndDisplayConfigNotice();
@@ -49,15 +50,25 @@ async function initDashboard() {
     ]);
 
     const orders = ordersRes.data || [];
-    const completedOrders = orders.filter(o => o.order_status === 'Completed');
-    const totalRevenue = completedOrders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+    // Sum revenue from all active & confirmed orders (excludes only cancelled)
+    const activeOrders = orders.filter(o => o.order_status !== 'Cancelled');
+    const totalRevenue = activeOrders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
     const pendingOrders = orders.filter(o => !['Completed', 'Cancelled'].includes(o.order_status));
 
-    document.getElementById('dash-revenue').textContent = formatCurrency(totalRevenue);
-    document.getElementById('dash-orders-count').textContent = orders.length;
-    document.getElementById('dash-pending-count').textContent = pendingOrders.length;
-    document.getElementById('dash-foods-count').textContent = foodsRes.count || 0;
-    document.getElementById('dash-coupons-count').textContent = couponsRes.count || 0;
+    const revenueEl = document.getElementById('dash-revenue');
+    if (revenueEl) revenueEl.textContent = formatCurrency(totalRevenue);
+
+    const ordersEl = document.getElementById('dash-orders-count');
+    if (ordersEl) ordersEl.textContent = orders.length;
+
+    const pendingEl = document.getElementById('dash-pending-count');
+    if (pendingEl) pendingEl.textContent = pendingOrders.length;
+
+    const foodsEl = document.getElementById('dash-foods-count');
+    if (foodsEl) foodsEl.textContent = foodsRes.count || 0;
+
+    const couponsEl = document.getElementById('dash-coupons-count');
+    if (couponsEl) couponsEl.textContent = couponsRes.count || 0;
 
     // 2. Recent orders
     const { data: recentOrders } = await supabase
@@ -359,6 +370,17 @@ async function initCategories() {
 
   await loadCats();
 
+  const catNameInput = document.getElementById('cat-name');
+  const catSlugInput = document.getElementById('cat-slug');
+  if (catNameInput && catSlugInput) {
+    catNameInput.addEventListener('input', () => {
+      catSlugInput.value = catNameInput.value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    });
+  }
+
   if (addForm) {
     addForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -424,11 +446,21 @@ async function initOrdersManagement() {
         <td><span class="badge bg-light text-dark border">${escapeHtml(o.order_type)}</span></td>
         <td class="fw-bold">${formatCurrency(o.total_amount)}</td>
         <td>
-          <select class="form-select form-select-sm rounded-pill order-status-select" data-id="${o.id}">
-            ${['Pending', 'Confirmed', 'Preparing', 'Ready', 'Out for Delivery', 'Completed', 'Cancelled'].map(s => `
-              <option value="${s}" ${s === o.order_status ? 'selected' : ''}>${s}</option>
-            `).join('')}
-          </select>
+          ${(() => {
+            const isTerminal = ['Completed', 'Cancelled'].includes(o.order_status);
+            if (isTerminal) {
+              return `<span class="badge ${getStatusBadgeClass(o.order_status)} px-3 py-1 rounded-pill">${escapeHtml(o.order_status)}</span>`;
+            }
+            const allowed = getAllowedNextStatuses(o.order_type, o.order_status);
+            const options = [o.order_status, ...allowed];
+            return `
+              <select class="form-select form-select-sm rounded-pill order-status-select" data-id="${o.id}">
+                ${options.map(s => `
+                  <option value="${s}" ${s === o.order_status ? 'selected' : ''}>${s}</option>
+                `).join('')}
+              </select>
+            `;
+          })()}
         </td>
         <td><span class="badge ${o.payment_status === 'Paid' ? 'bg-success' : 'bg-warning text-dark'}">${escapeHtml(o.payment_status)}</span></td>
         <td class="small text-muted">${new Date(o.created_at).toLocaleDateString()}</td>
@@ -592,31 +624,78 @@ async function initCoupons() {
   await loadCoupons();
 
   if (addForm) {
+    const expiryInput = document.getElementById('coupon-expiry');
+    // Pre-populate default expiry to 30 days from now in YYYY-MM-DDTHH:MM format
+    if (expiryInput && !expiryInput.value) {
+      const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      future.setMinutes(future.getMinutes() - future.getTimezoneOffset());
+      expiryInput.value = future.toISOString().slice(0, 16);
+    }
+
     addForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = addForm.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Save Coupon';
+
       const code = document.getElementById('coupon-code').value.trim().toUpperCase();
       const discount_type = document.getElementById('coupon-type').value;
       const discount_value = parseFloat(document.getElementById('coupon-value').value);
       const minimum_order_amount = parseFloat(document.getElementById('coupon-min-order').value) || 0;
-      const maximum_discount = document.getElementById('coupon-max-discount').value ? parseFloat(document.getElementById('coupon-max-discount').value) : null;
-      const usage_limit = document.getElementById('coupon-limit').value ? parseInt(document.getElementById('coupon-limit').value) : null;
-      const expiry_date = document.getElementById('coupon-expiry').value;
 
-      const { error } = await supabase.from('coupons').insert({
-        code,
-        discount_type,
-        discount_value,
-        minimum_order_amount,
-        maximum_discount,
-        usage_limit,
-        expiry_date,
-        is_active: true
-      });
+      // Ensure positive constraint or null
+      const maxDiscountVal = parseFloat(document.getElementById('coupon-max-discount').value);
+      const maximum_discount = (!isNaN(maxDiscountVal) && maxDiscountVal > 0) ? maxDiscountVal : null;
 
-      if (error) alert('Error creating coupon: ' + error.message);
-      else {
+      const limitVal = parseInt(document.getElementById('coupon-limit').value);
+      const usage_limit = (!isNaN(limitVal) && limitVal > 0) ? limitVal : null;
+
+      const rawExpiry = document.getElementById('coupon-expiry').value;
+      const expiry_date = rawExpiry ? new Date(rawExpiry).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      if (!code || isNaN(discount_value) || discount_value <= 0) {
+        alert('Please provide a valid coupon code and positive discount value.');
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving...`;
+      }
+
+      try {
+        const { data, error } = await supabase.from('coupons').insert({
+          code,
+          discount_type,
+          discount_value,
+          minimum_order_amount,
+          maximum_discount,
+          usage_limit,
+          start_date: new Date(Date.now() - 60 * 1000).toISOString(),
+          expiry_date,
+          is_active: true
+        }).select().maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        alert(`Coupon "${code}" created successfully and is now active!`);
         addForm.reset();
+        // Reset expiry to 30 days
+        if (expiryInput) {
+          const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          future.setMinutes(future.getMinutes() - future.getTimezoneOffset());
+          expiryInput.value = future.toISOString().slice(0, 16);
+        }
         await loadCoupons();
+      } catch (err) {
+        console.error('Error creating coupon:', err);
+        alert('Failed to create coupon: ' + (err.message || 'Please check your inputs and try again.'));
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
       }
     });
   }
@@ -629,13 +708,13 @@ async function initReports() {
   const dateInput = document.getElementById('report-date-picker');
   const fetchBtn = document.getElementById('generate-report-btn');
 
-  // Default to today
+  // Default to today in Dhaka timezone
   if (dateInput && !dateInput.value) {
-    dateInput.value = new Date().toISOString().split('T')[0];
+    dateInput.value = getDhakaDateString();
   }
 
   async function generateReport() {
-    const selectedDate = dateInput?.value || new Date().toISOString().split('T')[0];
+    const selectedDate = dateInput?.value || getDhakaDateString();
     const tbody = document.getElementById('report-orders-tbody');
 
     try {

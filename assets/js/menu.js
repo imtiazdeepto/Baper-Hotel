@@ -16,9 +16,12 @@ import {
   setAppliedCoupon,
   getRecommendations,
   formatCurrency,
-  updateCartBadges
+  updateCartBadges,
+  getOrderPreferences,
+  setOrderPreferences
 } from './cart.js';
 import { setupAuthNav, logout } from './auth.js';
+import { escapeHtml, getSafeImageUrl } from './appLogic.js';
 
 let allFoods = [];
 let allCategories = [];
@@ -54,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkAndDisplayConfigNotice();
   await setupAuthNav();
   updateCartBadges();
+  hydrateOrderPreferences();
   initEventListeners();
   await loadMenuData();
   renderCartSidebar();
@@ -77,6 +81,17 @@ function initEventListeners() {
       renderFoodsGrid();
     });
   }
+
+  const orderTypeSelect = document.getElementById('orderType');
+  orderTypeSelect?.addEventListener('change', () => {
+    setOrderPreferences({ orderType: orderTypeSelect.value });
+  });
+
+  document.querySelectorAll('input[name="quickPaymentMethod"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (radio.checked) setOrderPreferences({ paymentMethod: radio.value });
+    });
+  });
 
   // Cart update event listener
   window.addEventListener('cart-updated', () => {
@@ -272,7 +287,7 @@ function renderFoodsGrid() {
     const categoryName = food.category?.name || 'General';
     const isAvailable = food.is_available !== false;
     const placeholderImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
-    const imageUrl = food.image_url || placeholderImg;
+    const imageUrl = getSafeImageUrl(food.image_url, placeholderImg);
 
     return `
       <article class="food-card ${!isAvailable ? 'unavailable' : ''}">
@@ -366,18 +381,18 @@ function renderCartSidebar() {
   if (container) {
     container.innerHTML = cart.map(item => `
       <div class="cart-item">
-        <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80')}" alt="${escapeHtml(item.name)}">
+        <img src="${escapeHtml(getSafeImageUrl(item.image_url, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80'))}" alt="${escapeHtml(item.name)}">
         <div class="min-w-0">
           <div class="fw-bold small text-dark text-truncate">${escapeHtml(item.name)}</div>
           <div class="small text-muted">${formatCurrency(item.price)} each</div>
         </div>
         <div class="d-flex align-items-center gap-1">
           <div class="cart-stepper">
-            <button type="button" class="cart-minus-btn" data-id="${item.id}" aria-label="Decrease quantity"><i class="fa-solid fa-minus"></i></button>
+            <button type="button" class="cart-minus-btn" data-id="${escapeHtml(item.id)}" aria-label="Decrease quantity"><i class="fa-solid fa-minus"></i></button>
             <span>${item.quantity}</span>
-            <button type="button" class="cart-plus-btn" data-id="${item.id}" aria-label="Increase quantity"><i class="fa-solid fa-plus"></i></button>
+            <button type="button" class="cart-plus-btn" data-id="${escapeHtml(item.id)}" aria-label="Increase quantity"><i class="fa-solid fa-plus"></i></button>
           </div>
-          <button type="button" class="button button-secondary p-1 border-0 cart-remove-btn text-danger" data-id="${item.id}" aria-label="Remove item">
+          <button type="button" class="button button-secondary p-1 border-0 cart-remove-btn text-danger" data-id="${escapeHtml(item.id)}" aria-label="Remove item">
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
@@ -490,7 +505,7 @@ function renderCartSidebar() {
     if (recs.length > 0) {
       recommendationsSection.innerHTML = recs.map(rec => `
         <div class="recommendation-card">
-          <img src="${escapeHtml(rec.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=80&q=80')}" alt="${escapeHtml(rec.name)}">
+          <img src="${escapeHtml(getSafeImageUrl(rec.image_url, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=80&q=80'))}" alt="${escapeHtml(rec.name)}">
           <div class="min-w-0">
             <h4 class="small fw-bold text-dark text-truncate mb-0">${escapeHtml(rec.name)}</h4>
             <div class="rec-reason">${escapeHtml(rec.reason)}</div>
@@ -524,12 +539,11 @@ function renderCartSidebar() {
   }
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+function hydrateOrderPreferences() {
+  const preferences = getOrderPreferences();
+  const orderTypeSelect = document.getElementById('orderType');
+  if (orderTypeSelect) orderTypeSelect.value = preferences.orderType;
+
+  const paymentRadio = document.querySelector(`input[name="quickPaymentMethod"][value="${preferences.paymentMethod}"]`);
+  if (paymentRadio) paymentRadio.checked = true;
 }

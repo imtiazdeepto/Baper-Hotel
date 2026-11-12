@@ -96,6 +96,7 @@
   import { getCart, updateQuantity, removeFromCart, clearCart, calculateTotals, formatCurrency, applyCoupon, setAppliedCoupon } from '/assets/js/cart.js';
   import { setupAuthNav } from '/assets/js/auth.js';
   import { checkAndDisplayConfigNotice } from '/assets/js/supabaseClient.js';
+  import { escapeHtml, getSafeImageUrl } from '/assets/js/appLogic.js';
 
   document.addEventListener('DOMContentLoaded', async () => {
     checkAndDisplayConfigNotice();
@@ -121,7 +122,11 @@
     if (items.length === 0) {
       if (container) container.innerHTML = '';
       if (emptyBox) emptyBox.style.display = 'block';
-      if (checkoutBtn) checkoutBtn.classList.add('disabled');
+      if (checkoutBtn) {
+        checkoutBtn.classList.add('disabled');
+        checkoutBtn.setAttribute('aria-disabled', 'true');
+        checkoutBtn.setAttribute('tabindex', '-1');
+      }
       document.getElementById('page-subtotal').textContent = '৳ 0.00';
       document.getElementById('page-discount').textContent = '৳ 0.00';
       document.getElementById('page-total').textContent = '৳ 0.00';
@@ -129,25 +134,29 @@
     }
 
     if (emptyBox) emptyBox.style.display = 'none';
-    if (checkoutBtn) checkoutBtn.classList.remove('disabled');
+    if (checkoutBtn) {
+      checkoutBtn.classList.remove('disabled');
+      checkoutBtn.removeAttribute('aria-disabled');
+      checkoutBtn.removeAttribute('tabindex');
+    }
 
     container.innerHTML = items.map(item => `
       <div class="d-flex align-items-center justify-content-between p-3 mb-3 bg-light rounded-3 border">
         <div class="d-flex align-items-center gap-3">
-          <img src="${item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=120&q=80'}" class="rounded-3" style="width: 70px; height: 70px; object-fit: cover;">
+          <img src="${escapeHtml(getSafeImageUrl(item.image_url, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=120&q=80'))}" alt="${escapeHtml(item.name)}" class="rounded-3" style="width: 70px; height: 70px; object-fit: cover;">
           <div>
-            <h6 class="fw-bold mb-1 text-dark">${item.name}</h6>
+            <h6 class="fw-bold mb-1 text-dark">${escapeHtml(item.name)}</h6>
             <div class="text-primary fw-bold small">${formatCurrency(item.price)} each</div>
           </div>
         </div>
         <div class="d-flex align-items-center gap-3">
           <div class="quantity-stepper d-flex align-items-center bg-white rounded-pill border px-2 py-1">
-            <button class="btn btn-sm p-0 border-0 minus-btn" data-id="${item.id}"><i class="fa-solid fa-minus fs-xs"></i></button>
+            <button class="btn btn-sm p-0 border-0 minus-btn" data-id="${escapeHtml(item.id)}"><i class="fa-solid fa-minus fs-xs"></i></button>
             <span class="px-3 fw-bold small">${item.quantity}</span>
-            <button class="btn btn-sm p-0 border-0 plus-btn" data-id="${item.id}"><i class="fa-solid fa-plus fs-xs"></i></button>
+            <button class="btn btn-sm p-0 border-0 plus-btn" data-id="${escapeHtml(item.id)}"><i class="fa-solid fa-plus fs-xs"></i></button>
           </div>
           <div class="fw-bold text-dark" style="min-width: 80px; text-align: right;">${formatCurrency(item.price * item.quantity)}</div>
-          <button class="btn btn-sm text-danger border-0 remove-btn" data-id="${item.id}"><i class="fa-regular fa-trash-can"></i></button>
+          <button class="btn btn-sm text-danger border-0 remove-btn" data-id="${escapeHtml(item.id)}"><i class="fa-regular fa-trash-can"></i></button>
         </div>
       </div>
     `).join('');
@@ -177,7 +186,7 @@
     if (coupon) {
       couponBox.innerHTML = `
         <div class="d-flex align-items-center justify-content-between p-2 bg-success-subtle text-success border border-success-subtle rounded-3">
-          <span class="small fw-bold"><i class="fa-solid fa-circle-check me-1"></i>${coupon.code}: Saved ${formatCurrency(discount)}</span>
+          <span class="small fw-bold"><i class="fa-solid fa-circle-check me-1"></i>${escapeHtml(coupon.code)}: Saved ${formatCurrency(discount)}</span>
           <button class="btn btn-sm btn-link text-danger p-0 text-decoration-none small fw-semibold" id="page-rem-coupon">Remove</button>
         </div>
       `;

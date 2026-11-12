@@ -6,6 +6,7 @@
 import { supabase, isSupabaseConfigured, checkAndDisplayConfigNotice } from './supabaseClient.js';
 import { getCurrentUser, setupAuthNav } from './auth.js';
 import { formatCurrency } from './cart.js';
+import { escapeHtml, getOrderStatusSequence } from './appLogic.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   checkAndDisplayConfigNotice();
@@ -30,6 +31,12 @@ async function initOrderConfirmation() {
   const orderNumber = params.get('order_number');
   const isDemo = params.get('demo') === 'true';
 
+  const iconEl = document.getElementById('confirmation-icon');
+  const titleEl = document.getElementById('confirmation-title');
+  const messageEl = document.getElementById('confirmation-message');
+  const detailsEl = document.getElementById('confirmation-details');
+  const actionsEl = document.getElementById('confirmation-actions');
+
   const orderNumEl = document.getElementById('conf-order-number');
   const dateEl = document.getElementById('conf-order-date');
   const statusEl = document.getElementById('conf-order-status');
@@ -39,15 +46,106 @@ async function initOrderConfirmation() {
   const totalEl = document.getElementById('conf-total');
   const trackLink = document.getElementById('conf-track-link');
 
-  if (orderNumEl) orderNumEl.textContent = orderNumber || 'ORD-RECENT';
-  if (dateEl) dateEl.textContent = new Date().toLocaleString();
-  if (trackLink && orderNumber) {
-    trackLink.href = `/track-order.html?order_number=${encodeURIComponent(orderNumber)}`;
+  // Case 1: Page opened directly without an order identifier or demo flag
+  if (!orderId && !orderNumber && !isDemo) {
+    if (iconEl) {
+      iconEl.style.backgroundColor = '#fff3cd';
+      iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-warning fs-2"></i>';
+    }
+    if (titleEl) titleEl.textContent = 'No Active Order Found';
+    if (messageEl) messageEl.textContent = 'We could not find an active order to display. Please browse our menu to place an order or track an existing order by order number.';
+    if (detailsEl) detailsEl.style.display = 'none';
+    if (actionsEl) {
+      actionsEl.innerHTML = `
+        <a href="/" class="btn btn-primary py-3 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+          <i class="fa-solid fa-utensils"></i>
+          <span>Browse Fresh Menu</span>
+        </a>
+        <a href="/track-order.html" class="btn btn-outline-secondary py-2 rounded-pill small">
+          <i class="fa-solid fa-location-dot me-1"></i> Track Order by Number
+        </a>
+      `;
+      actionsEl.style.display = 'flex';
+    }
+    return;
   }
 
-  if (isDemo || !isSupabaseConfigured() || (!orderId && !orderNumber)) {
-    if (statusEl) statusEl.innerHTML = `<span class="badge bg-warning text-dark px-3 py-2 rounded-pill">Pending (Demo Mode)</span>`;
-    return;
+  // Case 2: Demo mode receipt
+  if (isDemo) {
+    let demoData = null;
+    try {
+      demoData = JSON.parse(sessionStorage.getItem('restaurant_demo_receipt') || 'null');
+    } catch {
+      demoData = null;
+    }
+
+    if (demoData && (demoData.order_number === orderNumber || !orderNumber)) {
+      if (iconEl) {
+        iconEl.style.backgroundColor = '#d1e7dd';
+        iconEl.innerHTML = '<i class="fa-solid fa-check text-success fs-2"></i>';
+      }
+      if (titleEl) titleEl.textContent = 'Thank You! Demo Order Recorded 🎉';
+      if (messageEl) messageEl.textContent = 'This is a local demo order simulation (Supabase is running in offline demo mode).';
+
+      if (orderNumEl) orderNumEl.textContent = demoData.order_number;
+      if (dateEl) dateEl.textContent = new Date(demoData.created_at || Date.now()).toLocaleString();
+      if (statusEl) statusEl.innerHTML = `<span class="badge bg-warning text-dark px-3 py-1 rounded-pill">Pending (Demo Mode)</span>`;
+
+      if (itemsContainer && demoData.items) {
+        itemsContainer.innerHTML = demoData.items.map(item => `
+          <div class="d-flex justify-content-between py-2 border-bottom small">
+            <div>
+              <span class="fw-semibold text-dark">${escapeHtml(item.food_name_snapshot)}</span>
+              <span class="text-muted ms-1">(${item.quantity} × ${formatCurrency(item.unit_price)})</span>
+            </div>
+            <span class="fw-bold text-dark">${formatCurrency(item.line_total)}</span>
+          </div>
+        `).join('');
+      }
+
+      if (subtotalEl) subtotalEl.textContent = formatCurrency(demoData.subtotal);
+      if (discountEl) discountEl.textContent = demoData.discount_amount > 0 ? `- ${formatCurrency(demoData.discount_amount)}` : formatCurrency(0);
+      if (totalEl) totalEl.textContent = formatCurrency(demoData.total_amount);
+
+      if (detailsEl) detailsEl.style.display = 'block';
+      if (actionsEl) {
+        if (trackLink) trackLink.href = `/track-order.html?order_number=${encodeURIComponent(demoData.order_number)}`;
+        actionsEl.style.display = 'flex';
+      }
+      return;
+    } else {
+      if (iconEl) {
+        iconEl.style.backgroundColor = '#f8d7da';
+        iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger fs-2"></i>';
+      }
+      if (titleEl) titleEl.textContent = 'Demo Order Expired';
+      if (messageEl) messageEl.textContent = 'The temporary demo receipt was not found in browser storage.';
+      if (detailsEl) detailsEl.style.display = 'none';
+      if (actionsEl) {
+        actionsEl.innerHTML = `
+          <a href="/" class="btn btn-primary py-3 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+            <i class="fa-solid fa-utensils"></i>
+            <span>Return to Menu</span>
+          </a>
+        `;
+        actionsEl.style.display = 'flex';
+      }
+      return;
+    }
+  }
+
+  // Pre-fill URL metadata if available while network request resolves
+  const urlSubtotal = params.get('subtotal');
+  const urlDiscount = params.get('discount');
+  const urlTotal = params.get('total');
+  if (orderNumEl && orderNumber) orderNumEl.textContent = orderNumber;
+  if (dateEl) dateEl.textContent = new Date().toLocaleString();
+  if (urlSubtotal && subtotalEl) subtotalEl.textContent = formatCurrency(urlSubtotal);
+  if (urlDiscount && discountEl) discountEl.textContent = parseFloat(urlDiscount) > 0 ? `- ${formatCurrency(urlDiscount)}` : formatCurrency(0);
+  if (urlTotal && totalEl) totalEl.textContent = formatCurrency(urlTotal);
+
+  if (trackLink && orderNumber) {
+    trackLink.href = `/track-order.html?order_number=${encodeURIComponent(orderNumber)}`;
   }
 
   // Ensure Supabase auth session token is loaded into client
@@ -56,7 +154,7 @@ async function initOrderConfirmation() {
   try {
     let order = null;
 
-    // Try track_order RPC first (safe, fast, returns items atomically)
+    // 1. Try track_order RPC first (safe, fast, returns items atomically)
     if (orderNumber) {
       const { data: rpcData, error: rpcError } = await supabase.rpc('track_order', {
         p_order_number: orderNumber.trim()
@@ -66,7 +164,7 @@ async function initOrderConfirmation() {
       }
     }
 
-    // Fallback: direct table query by id or order_number
+    // 2. Fallback: direct table query by id or order_number
     if (!order) {
       let query = supabase
         .from('orders')
@@ -88,14 +186,41 @@ async function initOrderConfirmation() {
     }
 
     if (!order) {
-      console.warn('Order confirmation details not found yet for id/number.');
+      // Order requested was not found in database
+      if (iconEl) {
+        iconEl.style.backgroundColor = '#f8d7da';
+        iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger fs-2"></i>';
+      }
+      if (titleEl) titleEl.textContent = 'Order Not Found';
+      if (messageEl) messageEl.textContent = `We could not locate order "${escapeHtml(orderNumber || orderId)}". Please verify your order number and try again.`;
+      if (detailsEl) detailsEl.style.display = 'none';
+      if (actionsEl) {
+        actionsEl.innerHTML = `
+          <a href="/" class="btn btn-primary py-3 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+            <i class="fa-solid fa-utensils"></i>
+            <span>Browse Fresh Menu</span>
+          </a>
+          <a href="/track-order.html" class="btn btn-outline-secondary py-2 rounded-pill small">
+            <i class="fa-solid fa-location-dot me-1"></i> Track Order by Number
+          </a>
+        `;
+        actionsEl.style.display = 'flex';
+      }
       return;
     }
+
+    // Order successfully verified
+    if (iconEl) {
+      iconEl.style.backgroundColor = '#d1e7dd';
+      iconEl.innerHTML = '<i class="fa-solid fa-check text-success fs-2"></i>';
+    }
+    if (titleEl) titleEl.textContent = 'Thank You! Order Confirmed 🎉';
+    if (messageEl) messageEl.textContent = 'Your order has been received by the kitchen and is being processed.';
 
     if (orderNumEl) orderNumEl.textContent = order.order_number;
     if (dateEl) dateEl.textContent = new Date(order.created_at).toLocaleString();
     if (statusEl) {
-      statusEl.innerHTML = `<span class="badge ${getStatusBadgeClass(order.order_status)} px-3 py-2 rounded-pill">${escapeHtml(order.order_status)}</span>`;
+      statusEl.innerHTML = `<span class="badge ${getStatusBadgeClass(order.order_status)} px-3 py-1 rounded-pill">${escapeHtml(order.order_status)}</span>`;
     }
 
     if (itemsContainer && order.items && order.items.length > 0) {
@@ -116,8 +241,22 @@ async function initOrderConfirmation() {
     if (discountEl) discountEl.textContent = order.discount_amount > 0 ? `- ${formatCurrency(order.discount_amount)}` : formatCurrency(0);
     if (totalEl) totalEl.textContent = formatCurrency(order.total_amount);
 
+    if (detailsEl) detailsEl.style.display = 'block';
+    if (actionsEl) {
+      if (trackLink) trackLink.href = `/track-order.html?order_number=${encodeURIComponent(order.order_number)}`;
+      actionsEl.style.display = 'flex';
+    }
+
   } catch (err) {
     console.warn('Could not fetch full order confirmation details:', err);
+    if (iconEl) {
+      iconEl.style.backgroundColor = '#f8d7da';
+      iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger fs-2"></i>';
+    }
+    if (titleEl) titleEl.textContent = 'Error Loading Order';
+    if (messageEl) messageEl.textContent = err.message || 'Unable to load order details. Please check your network connection.';
+    if (detailsEl) detailsEl.style.display = 'none';
+    if (actionsEl) actionsEl.style.display = 'flex';
   }
 }
 
@@ -130,12 +269,17 @@ async function initOrderTracking() {
   const params = new URLSearchParams(window.location.search);
   const initialOrderNumber = params.get('order_number');
 
+  // Immediately pre-fill search input if order_number parameter is present
+  if (initialOrderNumber && searchInput) {
+    searchInput.value = initialOrderNumber.trim();
+  }
+
   // Hydrate auth session
   await getCurrentUser();
 
-  if (initialOrderNumber && searchInput) {
-    searchInput.value = initialOrderNumber;
-    await fetchAndRenderTracking(initialOrderNumber);
+  if (initialOrderNumber) {
+    if (searchInput) searchInput.value = initialOrderNumber.trim();
+    await fetchAndRenderTracking(initialOrderNumber.trim());
   }
 
   if (searchForm) {
@@ -234,7 +378,8 @@ function renderTrackingResult(order) {
   const resultCard = document.getElementById('tracking-result-container');
   if (!resultCard) return;
 
-  const statuses = ['Pending', 'Confirmed', 'Preparing', 'Ready', 'Out for Delivery', 'Completed'];
+  const orderType = order.order_type || 'Dine In';
+  const statuses = getOrderStatusSequence(orderType);
   const currentIndex = statuses.indexOf(order.order_status);
   const isCancelled = order.order_status === 'Cancelled';
 
@@ -251,7 +396,7 @@ function renderTrackingResult(order) {
     stepperHtml = `
       <div class="tracking-timeline d-flex justify-content-between position-relative my-4">
         ${statuses.map((s, idx) => {
-          const isDone = idx <= currentIndex;
+          const isDone = currentIndex >= 0 && idx <= currentIndex;
           const isCurrent = idx === currentIndex;
           const icon = getStatusIcon(s);
           return `
@@ -284,6 +429,14 @@ function renderTrackingResult(order) {
     </div>
   ` : '';
 
+  const customerName = order.customer_name || 'Customer';
+  const phoneDisplay = order.phone
+    ? escapeHtml(order.phone)
+    : '<span class="text-muted fst-italic">Protected for customer privacy</span>';
+  const addressDisplay = order.delivery_address
+    ? `<div class="small text-muted mb-1">Address: <strong class="text-dark">${escapeHtml(order.delivery_address)}</strong></div>`
+    : (orderType === 'Delivery' ? '<div class="small text-muted mb-1">Address: <span class="text-muted fst-italic">Protected for customer privacy</span></div>' : '');
+
   resultCard.innerHTML = `
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
       <div class="card-header bg-dark text-white p-4">
@@ -307,9 +460,9 @@ function renderTrackingResult(order) {
           <div class="col-md-6">
             <div class="p-3 bg-light rounded-3 h-100">
               <h6 class="fw-bold text-dark small mb-2"><i class="fa-solid fa-user me-1 text-primary"></i> Customer Details</h6>
-              <div class="small text-muted mb-1">Name: <strong class="text-dark">${escapeHtml(order.customer_name)}</strong></div>
-              <div class="small text-muted mb-1">Phone: <strong class="text-dark">${escapeHtml(order.phone)}</strong></div>
-              ${order.delivery_address ? `<div class="small text-muted mb-1">Address: <strong class="text-dark">${escapeHtml(order.delivery_address)}</strong></div>` : ''}
+              <div class="small text-muted mb-1">Name: <strong class="text-dark">${escapeHtml(customerName)}</strong></div>
+              <div class="small text-muted mb-1">Phone: <strong class="text-dark">${phoneDisplay}</strong></div>
+              ${addressDisplay}
               <div class="small text-muted">Payment: <strong class="text-dark">${escapeHtml(order.payment_method)} (${escapeHtml(order.payment_status)})</strong></div>
             </div>
           </div>
@@ -374,13 +527,14 @@ async function initOrderHistory() {
   }
 
   try {
-    // Enforced by RLS: customers can only read their own rows
+    // Filter strictly to current user's own orders (so staff/admin personal history only shows their own)
     const { data: orders, error } = await supabase
       .from('orders')
       .select(`
         *,
         items:order_items(*)
       `)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -471,14 +625,4 @@ function getStatusIcon(status) {
     case 'Completed': return 'fa-solid fa-circle-check';
     default: return 'fa-solid fa-circle';
   }
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }

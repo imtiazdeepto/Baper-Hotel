@@ -91,11 +91,11 @@ export function promptForCredentials() {
             </p>
             <div class="mb-3">
               <label class="form-label small fw-bold">Project URL</label>
-              <input type="url" id="modal-supabase-url" class="form-control rounded-3" placeholder="https://xyzcompany.supabase.co" value="${currentUrl}">
+              <input type="url" id="modal-supabase-url" class="form-control rounded-3" placeholder="https://xyzcompany.supabase.co">
             </div>
             <div class="mb-3">
               <label class="form-label small fw-bold">Anon / Public Key</label>
-              <textarea id="modal-supabase-key" class="form-control rounded-3" rows="3" placeholder="eyJhbGciOi...">${currentKey}</textarea>
+              <textarea id="modal-supabase-key" class="form-control rounded-3" rows="3" placeholder="eyJhbGciOi..."></textarea>
               <div class="form-text text-danger small"><i class="fa-solid fa-shield-halved me-1"></i>Do not paste your service_role key here. Use only the anon key.</div>
             </div>
           </div>
@@ -112,6 +112,9 @@ export function promptForCredentials() {
   container.innerHTML = modalHtml;
   document.body.appendChild(container);
 
+  document.getElementById('modal-supabase-url').value = currentUrl;
+  document.getElementById('modal-supabase-key').value = currentKey;
+
   // Initialize Bootstrap modal
   const modalEl = document.getElementById('configModal');
   const modal = new window.bootstrap.Modal(modalEl);
@@ -121,8 +124,15 @@ export function promptForCredentials() {
     const url = document.getElementById('modal-supabase-url').value.trim();
     const key = document.getElementById('modal-supabase-key').value.trim();
 
-    if (!url || !key) {
-      alert('Please provide both Project URL and Anon Key.');
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      parsedUrl = null;
+    }
+
+    if (!parsedUrl || parsedUrl.protocol !== 'https:' || !parsedUrl.hostname.endsWith('.supabase.co') || !key) {
+      alert('Enter a valid HTTPS Supabase project URL and anon public key.');
       return;
     }
 

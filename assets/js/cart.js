@@ -5,9 +5,12 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 import { APP_CONFIG } from './config.js';
+import { normalizeOrderPreferences } from './appLogic.js';
 
 const CART_STORAGE_KEY = 'restaurant_cart_items';
 const COUPON_STORAGE_KEY = 'restaurant_applied_coupon';
+const ORDER_PREFERENCES_STORAGE_KEY = 'restaurant_order_preferences';
+const MAX_CART_QUANTITY = 99;
 
 /**
  * Retrieve items in cart
@@ -15,7 +18,8 @@ const COUPON_STORAGE_KEY = 'restaurant_applied_coupon';
 export function getCart() {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return normalizeCartItems(parsed);
   } catch (err) {
     console.error('Error reading cart:', err);
     return [];
@@ -26,9 +30,10 @@ export function getCart() {
  * Save cart items and trigger update event
  */
 function saveCart(items) {
+  const normalizedItems = normalizeCartItems(items);
   try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-    window.dispatchEvent(new CustomEvent('cart-updated', { detail: { items } }));
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(normalizedItems));
+    window.dispatchEvent(new CustomEvent('cart-updated', { detail: { items: normalizedItems } }));
     updateCartBadges();
   } catch (err) {
     console.error('Error saving cart:', err);
@@ -41,19 +46,21 @@ function saveCart(items) {
 export function addToCart(food, quantity = 1) {
   if (!food || !food.id) return;
   const cart = getCart();
-  const existingIndex = cart.findIndex(item => item.id === food.id);
+  const foodId = String(food.id);
+  const safeQuantity = clampQuantity(quantity);
+  const existingIndex = cart.findIndex(item => item.id === foodId);
 
   if (existingIndex > -1) {
-    cart[existingIndex].quantity += quantity;
+    cart[existingIndex].quantity = clampQuantity(cart[existingIndex].quantity + safeQuantity);
   } else {
     cart.push({
-      id: food.id,
-      name: food.name,
-      price: parseFloat(food.price),
-      image_url: food.image_url,
-      category_id: food.category_id,
-      category_name: food.category_name || '',
-      quantity: quantity
+      id: foodId,
+      name: String(food.name || 'Menu item'),
+      price: toMoney(food.price),
+      image_url: typeof food.image_url === 'string' ? food.image_url : '',
+      category_id: food.category_id ? String(food.category_id) : null,
+      category_name: String(food.category_name || ''),
+      quantity: safeQuantity
     });
   }
 
@@ -66,12 +73,14 @@ export function addToCart(food, quantity = 1) {
  */
 export function updateQuantity(foodId, newQuantity) {
   let cart = getCart();
-  if (newQuantity <= 0) {
-    cart = cart.filter(item => item.id !== foodId);
+  const normalizedId = String(foodId);
+  const quantity = Number.parseInt(newQuantity, 10);
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    cart = cart.filter(item => item.id !== normalizedId);
   } else {
-    const item = cart.find(i => i.id === foodId);
+    const item = cart.find(i => i.id === normalizedId);
     if (item) {
-      item.quantity = newQuantity;
+      item.quantity = clampQuantity(quantity);
     }
   }
   saveCart(cart);
@@ -83,7 +92,7 @@ export function updateQuantity(foodId, newQuantity) {
  */
 export function removeFromCart(foodId) {
   let cart = getCart();
-  cart = cart.filter(item => item.id !== foodId);
+  cart = cart.filter(item => item.id !== String(foodId));
   saveCart(cart);
   revalidateCoupon();
 }
@@ -103,7 +112,7 @@ export function clearCart() {
  */
 export function getCartItemCount() {
   const cart = getCart();
-  return cart.reduce((total, item) => total + item.quantity, 0);
+  return cart.reduce((total, item) => total + clampQuantity(item.quantity), 0);
 }
 
 /**
@@ -111,7 +120,11 @@ export function getCartItemCount() {
  */
 export function calculateSubtotal() {
   const cart = getCart();
-  const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const subtotal = cart.reduce((total, item) => {
+    const price = parseFloat(item.price) || 0;
+    const qty = parseInt(item.quantity) || 1;
+    return total + (price * qty);
+  }, 0);
   return Math.round(subtotal * 100) / 100;
 }
 
@@ -137,6 +150,86 @@ export function setAppliedCoupon(coupon) {
     localStorage.removeItem(COUPON_STORAGE_KEY);
   }
   window.dispatchEvent(new CustomEvent('cart-updated', { detail: { items: getCart() } }));
+}
+
+/**
+ * Persist the menu's fulfillment/payment choices so checkout keeps them.
+ */
+export function getOrderPreferences() {
+  try {
+    const raw = localStorage.getItem(ORDER_PREFERENCES_STORAGE_KEY);
+    return normalizeOrderPreferences(raw ? JSON.parse(raw) : {});
+  } catch {
+    return normalizeOrderPreferences();
+  }
+}
+
+export function setOrderPreferences(nextPreferences) {
+  const preferences = normalizeOrderPreferences({
+    ...getOrderPreferences(),
+    ...nextPreferences
+  });
+  localStorage.setItem(ORDER_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  window.dispatchEvent(new CustomEvent('order-preferences-updated', { detail: preferences }));
+  return preferences;
+}
+
+/**
+ * Refresh local cart snapshots from the database before checkout.
+ * The server remains authoritative; unavailable/deleted items are removed.
+ */
+export async function revalidateCartAgainstCatalog() {
+  const cart = getCart();
+  if (!isSupabaseConfigured() || cart.length === 0) {
+    return { changed: false, changes: [], items: cart };
+  }
+
+  const { data: foods, error } = await supabase
+    .from('foods')
+    .select('id, category_id, name, price, image_url, is_available, category:categories(name)')
+    .in('id', cart.map(item => item.id));
+
+  if (error) {
+    throw new Error(`Could not verify current menu prices: ${error.message}`);
+  }
+
+  const foodById = new Map((foods || []).map(food => [String(food.id), food]));
+  const changes = [];
+  const refreshedItems = [];
+
+  for (const item of cart) {
+    const currentFood = foodById.get(item.id);
+    if (!currentFood || currentFood.is_available === false) {
+      changes.push({ type: 'removed', name: item.name });
+      continue;
+    }
+
+    const currentPrice = toMoney(currentFood.price);
+    if (currentPrice !== toMoney(item.price)) {
+      changes.push({
+        type: 'price',
+        name: currentFood.name,
+        oldPrice: toMoney(item.price),
+        newPrice: currentPrice
+      });
+    }
+
+    refreshedItems.push({
+      ...item,
+      name: String(currentFood.name || item.name),
+      price: currentPrice,
+      image_url: currentFood.image_url || '',
+      category_id: currentFood.category_id ? String(currentFood.category_id) : null,
+      category_name: String(currentFood.category?.name || '')
+    });
+  }
+
+  if (changes.length > 0) {
+    saveCart(refreshedItems);
+    setAppliedCoupon(null);
+  }
+
+  return { changed: changes.length > 0, changes, items: refreshedItems };
 }
 
 /**
@@ -191,11 +284,12 @@ export async function revalidateCoupon() {
 
   if (isSupabaseConfigured()) {
     try {
-      const { data } = await supabase.rpc('validate_coupon', {
+      const { data, error } = await supabase.rpc('validate_coupon', {
         p_code: coupon.code,
         p_subtotal: subtotal
       });
 
+      if (error) throw error;
       if (data && data.is_valid) {
         setAppliedCoupon(data);
       } else {
@@ -297,4 +391,45 @@ export function getRecommendations(cartItems, allFoods) {
 export function formatCurrency(amount) {
   const num = parseFloat(amount) || 0;
   return `${APP_CONFIG.CURRENCY_SYMBOL} ${num.toFixed(2)}`;
+}
+
+function normalizeCartItems(value) {
+  if (!Array.isArray(value)) return [];
+
+  const uniqueItems = new Map();
+  for (const rawItem of value) {
+    if (!rawItem || typeof rawItem !== 'object' || rawItem.id === null || rawItem.id === undefined) continue;
+
+    const id = String(rawItem.id).trim().slice(0, 128);
+    const price = Number.parseFloat(rawItem.price);
+    if (!id || !Number.isFinite(price) || price < 0) continue;
+
+    const item = {
+      id,
+      name: String(rawItem.name || 'Menu item').slice(0, 200),
+      price: toMoney(price),
+      image_url: typeof rawItem.image_url === 'string' ? rawItem.image_url.slice(0, 2048) : '',
+      category_id: rawItem.category_id ? String(rawItem.category_id).slice(0, 128) : null,
+      category_name: String(rawItem.category_name || '').slice(0, 120),
+      quantity: clampQuantity(rawItem.quantity)
+    };
+
+    if (uniqueItems.has(id)) {
+      item.quantity = clampQuantity(uniqueItems.get(id).quantity + item.quantity);
+    }
+    uniqueItems.set(id, item);
+  }
+
+  return [...uniqueItems.values()];
+}
+
+function clampQuantity(value) {
+  const quantity = Number.parseInt(value, 10);
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.min(MAX_CART_QUANTITY, Math.max(1, quantity));
+}
+
+function toMoney(value) {
+  const amount = Number.parseFloat(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
 }

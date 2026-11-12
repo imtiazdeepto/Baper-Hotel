@@ -4,6 +4,7 @@
 // ============================================================
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
+import { escapeHtml, getPathWithSearch, getSafeRedirect } from './appLogic.js';
 
 /**
  * Get current session user
@@ -142,7 +143,7 @@ export async function logout(redirectUrl = '/login.html') {
   } catch (err) {
     console.error('Error during signOut:', err);
   } finally {
-    window.location.href = redirectUrl;
+    window.location.href = getSafeRedirect(redirectUrl, '/login.html');
   }
 }
 
@@ -153,7 +154,7 @@ export async function requireAuth(allowedRoles = []) {
   if (!isSupabaseConfigured()) return null;
 
   const user = await getCurrentUser();
-  const currentPath = window.location.pathname;
+  const currentPath = getPathWithSearch(window.location);
 
   if (!user) {
     window.location.href = `/login.html?redirect=${encodeURIComponent(currentPath)}`;
@@ -183,29 +184,31 @@ export async function requireAuth(allowedRoles = []) {
  */
 export async function setupAuthNav() {
   const authContainer = document.getElementById('navbar-auth-section');
-  if (!authContainer) return;
-
   const user = await getCurrentUser();
 
   if (!user) {
-    authContainer.innerHTML = `
-      <div class="d-flex align-items-center gap-2">
-        <a href="/login.html" class="button button-secondary py-1 px-3 small-text">
-          <i class="fa-solid fa-right-to-bracket me-1"></i> Sign In
-        </a>
-        <a href="/register.html" class="button button-primary py-1 px-3 small-text">
-          <i class="fa-solid fa-user-plus me-1"></i> Register
-        </a>
-      </div>
-    `;
-    return;
+    updateRoleNavigation(null, false);
+    if (authContainer) {
+      authContainer.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <a href="/login.html" class="button button-secondary py-1 px-3 small-text">
+            <i class="fa-solid fa-right-to-bracket me-1"></i> Sign In
+          </a>
+          <a href="/register.html" class="button button-primary py-1 px-3 small-text">
+            <i class="fa-solid fa-user-plus me-1"></i> Register
+          </a>
+        </div>
+      `;
+    }
+    return { user: null, profile: null };
   }
 
   const profile = await getUserProfile(user.id, user);
   const role = profile?.role || 'customer';
   const roleBadgeClass = role === 'admin' ? 'bg-danger text-white' : role === 'staff' ? 'bg-info text-dark' : 'bg-secondary text-white';
+  updateRoleNavigation(role, true);
 
-  authContainer.innerHTML = `
+  if (authContainer) authContainer.innerHTML = `
     <div class="dropdown">
       <button class="btn btn-light btn-sm dropdown-toggle rounded-pill px-3 border d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="fa-solid fa-circle-user text-primary fs-5"></i>
@@ -243,14 +246,24 @@ export async function setupAuthNav() {
   document.getElementById('nav-logout-btn')?.addEventListener('click', async () => {
     await logout();
   });
+
+  return { user, profile };
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+function updateRoleNavigation(role, isAuthenticated) {
+  document.querySelectorAll('[data-role-link]').forEach(element => {
+    const allowedRoles = (element.getAttribute('data-role-link') || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+    element.hidden = !role || !allowedRoles.includes(role);
+  });
+
+  document.querySelectorAll('[data-auth-only]').forEach(element => {
+    element.hidden = !isAuthenticated;
+  });
+
+  document.querySelectorAll('[data-anon-only]').forEach(element => {
+    element.hidden = isAuthenticated;
+  });
 }

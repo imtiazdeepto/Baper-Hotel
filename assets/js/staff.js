@@ -150,7 +150,7 @@ function renderOrderCard(order) {
           ${
             !isDone ? `
               <div class="d-flex gap-2 mt-auto">
-                ${getNextStatusButton(order.id, order.order_status)}
+                ${getNextStatusButton(order.id, order.order_status, order.order_type)}
                 <button class="btn btn-sm btn-outline-danger rounded-pill px-2 cancel-order-btn" data-id="${order.id}">
                   Cancel
                 </button>
@@ -163,7 +163,7 @@ function renderOrderCard(order) {
   `;
 }
 
-function getNextStatusButton(orderId, currentStatus) {
+function getNextStatusButton(orderId, currentStatus, orderType) {
   switch (currentStatus) {
     case 'Pending':
       return `<button class="btn btn-sm btn-primary rounded-pill flex-grow-1 update-status-btn" data-id="${orderId}" data-status="Confirmed"><i class="fa-solid fa-check me-1"></i> Confirm Order</button>`;
@@ -172,7 +172,12 @@ function getNextStatusButton(orderId, currentStatus) {
     case 'Preparing':
       return `<button class="btn btn-sm btn-info text-dark rounded-pill flex-grow-1 update-status-btn" data-id="${orderId}" data-status="Ready"><i class="fa-solid fa-bell-concierge me-1"></i> Mark as Ready</button>`;
     case 'Ready':
+      if (orderType === 'Delivery') {
+        return `<button class="btn btn-sm btn-primary rounded-pill flex-grow-1 update-status-btn" data-id="${orderId}" data-status="Out for Delivery"><i class="fa-solid fa-truck me-1"></i> Out for Delivery</button>`;
+      }
       return `<button class="btn btn-sm btn-success rounded-pill flex-grow-1 update-status-btn" data-id="${orderId}" data-status="Completed"><i class="fa-solid fa-circle-check me-1"></i> Complete & Serve</button>`;
+    case 'Out for Delivery':
+      return `<button class="btn btn-sm btn-success rounded-pill flex-grow-1 update-status-btn" data-id="${orderId}" data-status="Completed"><i class="fa-solid fa-circle-check me-1"></i> Delivered & Complete</button>`;
     default:
       return '';
   }

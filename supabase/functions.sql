@@ -375,6 +375,7 @@ SET search_path = public
 AS $$
 DECLARE
     v_old_status TEXT;
+    v_order_type TEXT;
     v_user_id UUID;
     v_is_authorized BOOLEAN;
 BEGIN
@@ -391,8 +392,8 @@ BEGIN
         RAISE EXCEPTION 'Invalid order status: %', p_new_status;
     END IF;
 
-    -- Fetch current status
-    SELECT order_status INTO v_old_status
+    -- Fetch current status and order type
+    SELECT order_status, order_type INTO v_old_status, v_order_type
     FROM public.orders
     WHERE id = p_order_id;
 
@@ -402,6 +403,42 @@ BEGIN
 
     IF v_old_status = p_new_status THEN
         RETURN jsonb_build_object('success', TRUE, 'message', 'Status unchanged.');
+    END IF;
+
+    -- Enforce terminal state
+    IF v_old_status IN ('Completed', 'Cancelled') THEN
+        RAISE EXCEPTION 'Order is already % and cannot be changed.', v_old_status;
+    END IF;
+
+    -- Enforce valid sequential transitions
+    IF p_new_status = 'Cancelled' THEN
+        IF v_old_status NOT IN ('Pending', 'Confirmed', 'Preparing') THEN
+            RAISE EXCEPTION 'Order cannot be cancelled once it is %.', v_old_status;
+        END IF;
+    ELSE
+        IF v_order_type = 'Delivery' THEN
+            IF NOT (
+                (v_old_status = 'Pending' AND p_new_status = 'Confirmed') OR
+                (v_old_status = 'Confirmed' AND p_new_status = 'Preparing') OR
+                (v_old_status = 'Preparing' AND p_new_status = 'Ready') OR
+                (v_old_status = 'Ready' AND p_new_status = 'Out for Delivery') OR
+                (v_old_status = 'Out for Delivery' AND p_new_status = 'Completed')
+            ) THEN
+                RAISE EXCEPTION 'Invalid status transition for Delivery order from % to %.', v_old_status, p_new_status;
+            END IF;
+        ELSE
+            IF p_new_status = 'Out for Delivery' THEN
+                RAISE EXCEPTION 'Status "Out for Delivery" is only applicable to Delivery orders.';
+            END IF;
+            IF NOT (
+                (v_old_status = 'Pending' AND p_new_status = 'Confirmed') OR
+                (v_old_status = 'Confirmed' AND p_new_status = 'Preparing') OR
+                (v_old_status = 'Preparing' AND p_new_status = 'Ready') OR
+                (v_old_status = 'Ready' AND p_new_status = 'Completed')
+            ) THEN
+                RAISE EXCEPTION 'Invalid status transition for % order from % to %.', v_order_type, v_old_status, p_new_status;
+            END IF;
+        END IF;
     END IF;
 
     -- Update order status
@@ -476,7 +513,7 @@ BEGIN
         v_discounts,
         v_net_sales
     FROM public.orders
-    WHERE DATE(created_at AT TIME ZONE 'UTC') = p_report_date;
+    WHERE DATE(created_at AT TIME ZONE 'Asia/Dhaka') = p_report_date;
 
     -- Fetch order list for the day
     SELECT COALESCE(jsonb_agg(
@@ -495,7 +532,7 @@ BEGIN
     ), '[]'::jsonb)
     INTO v_orders
     FROM public.orders o
-    WHERE DATE(o.created_at AT TIME ZONE 'UTC') = p_report_date;
+    WHERE DATE(o.created_at AT TIME ZONE 'Asia/Dhaka') = p_report_date;
 
     RETURN jsonb_build_object(
         'report_date', p_report_date,
@@ -524,6 +561,7 @@ DECLARE
     v_order RECORD;
     v_items JSONB;
     v_history JSONB;
+    v_is_owner_or_staff BOOLEAN := FALSE;
 BEGIN
     SELECT * INTO v_order
     FROM public.orders
@@ -531,6 +569,11 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN NULL;
+    END IF;
+
+    -- Check if caller is authenticated owner or staff/admin
+    IF auth.uid() IS NOT NULL AND (auth.uid() = v_order.user_id OR public.is_staff_or_admin()) THEN
+        v_is_owner_or_staff := TRUE;
     END IF;
 
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
@@ -563,13 +606,15 @@ BEGIN
         'total_amount', v_order.total_amount,
         'payment_method', v_order.payment_method,
         'payment_status', v_order.payment_status,
-        'customer_name', v_order.customer_name,
-        'phone', v_order.phone,
-        'delivery_address', v_order.delivery_address,
-        'notes', v_order.notes,
+        -- Privacy protection: mask personal data if not authenticated owner or staff
+        'customer_name', CASE WHEN v_is_owner_or_staff THEN v_order.customer_name ELSE 'Customer' END,
+        'phone', CASE WHEN v_is_owner_or_staff THEN v_order.phone ELSE NULL END,
+        'delivery_address', CASE WHEN v_is_owner_or_staff THEN v_order.delivery_address ELSE NULL END,
+        'notes', CASE WHEN v_is_owner_or_staff THEN v_order.notes ELSE NULL END,
         'created_at', v_order.created_at,
         'items', v_items,
-        'history', v_history
+        'history', v_history,
+        'is_owner_or_staff', v_is_owner_or_staff
     );
 END;
 $$;

@@ -80,6 +80,7 @@
 <script type="module">
   import { login, getCurrentUser, getUserProfile } from '/assets/js/auth.js';
   import { checkAndDisplayConfigNotice } from '/assets/js/supabaseClient.js';
+  import { getSafeRedirect } from '/assets/js/appLogic.js';
 
   document.addEventListener('DOMContentLoaded', async () => {
     checkAndDisplayConfigNotice();
@@ -90,7 +91,7 @@
       const profile = await getUserProfile(existingUser.id, existingUser);
       const role = profile?.role || 'customer';
       const params = new URLSearchParams(window.location.search);
-      const redirectParam = params.get('redirect');
+      const redirectParam = getSafeRedirect(params.get('redirect'));
 
       if (redirectParam) {
         window.location.href = redirectParam;
@@ -139,7 +140,7 @@
 
         // Check redirect parameter
         const params = new URLSearchParams(window.location.search);
-        const redirectParam = params.get('redirect');
+        const redirectParam = getSafeRedirect(params.get('redirect'));
 
         if (redirectParam) {
           window.location.href = redirectParam;

@@ -67,7 +67,10 @@
         <label for="reg-confirm-password" class="form-label small fw-bold text-dark">Confirm Password *</label>
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="fa-solid fa-shield-halved text-muted"></i></span>
-          <input type="password" id="reg-confirm-password" class="form-control border-start-0 rounded-end-3" placeholder="Re-type password" minlength="6" required autocomplete="new-password">
+          <input type="password" id="reg-confirm-password" class="form-control border-start-0 border-end-0" placeholder="Re-type password" minlength="6" required autocomplete="new-password">
+          <button class="btn btn-light border border-start-0 rounded-end-3 text-muted" type="button" id="toggle-reg-cpwd-btn" aria-label="Toggle confirm password visibility">
+            <i class="fa-regular fa-eye" id="reg-cpwd-eye-icon"></i>
+          </button>
         </div>
       </div>
 
@@ -108,6 +111,21 @@
       } else {
         pwdInput.type = 'password';
         eyeIcon.className = 'fa-regular fa-eye';
+      }
+    });
+
+    // Toggle confirm password visibility
+    const toggleCpwdBtn = document.getElementById('toggle-reg-cpwd-btn');
+    const cpwdInput = document.getElementById('reg-confirm-password');
+    const cpwdEyeIcon = document.getElementById('reg-cpwd-eye-icon');
+
+    toggleCpwdBtn?.addEventListener('click', () => {
+      if (cpwdInput.type === 'password') {
+        cpwdInput.type = 'text';
+        cpwdEyeIcon.className = 'fa-regular fa-eye-slash';
+      } else {
+        cpwdInput.type = 'password';
+        cpwdEyeIcon.className = 'fa-regular fa-eye';
       }
     });
 
@@ -171,7 +189,7 @@
 
       } catch (err) {
         console.error('Registration error:', err);
-        errorAlert.innerHTML = `<strong>Registration Failed:</strong><br>${err.message || 'An error occurred. Please try again.'}`;
+        errorAlert.textContent = `Registration failed: ${err.message || 'An error occurred. Please try again.'}`;
         errorAlert.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<i class="fa-solid fa-user-plus me-2"></i>Create Customer Account`;

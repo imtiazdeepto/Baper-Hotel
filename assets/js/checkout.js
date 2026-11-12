@@ -5,23 +5,31 @@
 
 import { supabase, isSupabaseConfigured, checkAndDisplayConfigNotice } from './supabaseClient.js';
 import { getCurrentUser, getUserProfile, setupAuthNav } from './auth.js';
-import { getCart, clearCart, calculateTotals, formatCurrency, applyCoupon, setAppliedCoupon, getAppliedCoupon } from './cart.js';
+import {
+  getCart,
+  clearCart,
+  calculateTotals,
+  formatCurrency,
+  applyCoupon,
+  setAppliedCoupon,
+  getOrderPreferences,
+  setOrderPreferences,
+  revalidateCartAgainstCatalog
+} from './cart.js';
+import { escapeHtml, getPathWithSearch } from './appLogic.js';
 
 let currentUser = null;
 let userProfile = null;
+let catalogChangesAcknowledged = true;
 
 document.addEventListener('DOMContentLoaded', async () => {
   checkAndDisplayConfigNotice();
-  await setupAuthNav();
 
-  // 1. Verify User Authentication
-  currentUser = await getCurrentUser();
-  if (!currentUser) {
-    window.location.href = `/login.html?redirect=${encodeURIComponent(window.location.pathname)}`;
-    return;
-  }
-
-  userProfile = await getUserProfile(currentUser.id);
+  // 1. Immediately render order summary so subtotal & items display with 0ms latency
+  renderOrderSummary();
+  window.addEventListener('cart-updated', renderOrderSummary);
+  initCheckoutForm();
+  hydrateOrderPreferences();
 
   // 2. Verify Cart Contents
   const cart = getCart();
@@ -31,15 +39,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // 3. Pre-fill customer contact fields
-  prefillCustomerInfo();
+  // 3. Verify User Authentication
+  if (isSupabaseConfigured()) {
+    currentUser = await getCurrentUser();
+    if (!currentUser) {
+      window.location.href = `/login.html?redirect=${encodeURIComponent(getPathWithSearch(window.location))}`;
+      return;
+    }
 
-  // 4. Render Checkout Order Summary
-  renderOrderSummary();
-  window.addEventListener('cart-updated', renderOrderSummary);
+    userProfile = await getUserProfile(currentUser.id, currentUser);
+    prefillCustomerInfo();
+  }
 
-  // 5. Setup Form Interactions
-  initCheckoutForm();
+  // 4. Refresh price/availability snapshots before final submission
+  await verifyCatalogState();
+  if (getCart().length === 0) {
+    showError('The items in your cart are no longer available. Please choose from the current menu.');
+    return;
+  }
 });
 
 function prefillCustomerInfo() {
@@ -166,30 +183,43 @@ function initCheckoutForm() {
   const addressGroup = document.getElementById('delivery-address-group');
   const addressInput = document.getElementById('checkout-address');
 
+  const updateOrderTypeUi = () => {
+    if (!orderTypeSelect || !addressGroup) return;
+    const isDelivery = orderTypeSelect.value === 'Delivery';
+    addressGroup.style.display = isDelivery ? 'block' : 'none';
+    if (addressInput) {
+      if (isDelivery) addressInput.setAttribute('required', 'required');
+      else addressInput.removeAttribute('required');
+    }
+  };
+
   // Toggle delivery address field based on order type
   if (orderTypeSelect && addressGroup) {
     orderTypeSelect.addEventListener('change', () => {
-      if (orderTypeSelect.value === 'Delivery') {
-        addressGroup.style.display = 'block';
-        if (addressInput) addressInput.setAttribute('required', 'required');
-      } else {
-        addressGroup.style.display = 'none';
-        if (addressInput) addressInput.removeAttribute('required');
-      }
+      setOrderPreferences({ orderType: orderTypeSelect.value });
+      updateOrderTypeUi();
     });
   }
+  updateOrderTypeUi();
 
   // Payment method selection cards
   const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
   const cardDetailsSection = document.getElementById('card-details-section');
   const walletDetailsSection = document.getElementById('wallet-details-section');
 
+  const updatePaymentUi = () => {
+    const selected = document.querySelector('input[name="payment_method"]:checked')?.value || 'Cash';
+    if (cardDetailsSection) cardDetailsSection.style.display = selected === 'Debit Card' ? 'block' : 'none';
+    if (walletDetailsSection) walletDetailsSection.style.display = selected === 'E-Wallet' ? 'block' : 'none';
+  };
+
   paymentRadios.forEach(radio => {
     radio.addEventListener('change', () => {
-      if (cardDetailsSection) cardDetailsSection.style.display = radio.value === 'Debit Card' ? 'block' : 'none';
-      if (walletDetailsSection) walletDetailsSection.style.display = radio.value === 'E-Wallet' ? 'block' : 'none';
+      if (radio.checked) setOrderPreferences({ paymentMethod: radio.value });
+      updatePaymentUi();
     });
   });
+  updatePaymentUi();
 
   // Handle Form Submission
   const checkoutForm = document.getElementById('checkout-form');
@@ -208,6 +238,9 @@ function initCheckoutForm() {
         return;
       }
 
+      const catalogIsCurrent = await verifyCatalogState();
+      if (!catalogIsCurrent || !catalogChangesAcknowledged) return;
+
       // Gather input values
       const orderType = orderTypeSelect ? orderTypeSelect.value : 'Dine In';
       const customerName = document.getElementById('checkout-name')?.value.trim();
@@ -220,6 +253,11 @@ function initCheckoutForm() {
 
       if (!customerName || !phone) {
         showError('Please fill in your name and phone number.');
+        return;
+      }
+
+      if (!/^[+\d][\d\s()-]{6,19}$/.test(phone)) {
+        showError('Please enter a valid phone number (7–20 digits/characters).');
         return;
       }
 
@@ -245,9 +283,37 @@ function initCheckoutForm() {
 
       try {
         if (!isSupabaseConfigured()) {
-          // Fallback demo simulation
+          // Explicit local demo receipt. The confirmation page verifies this stored record.
           await new Promise(r => setTimeout(r, 1200));
-          const demoOrderNumber = 'ORD-DEMO-' + Math.floor(100000 + Math.random() * 900000);
+          const demoOrderNumber = `ORD-DEMO-${crypto.randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+          const { subtotal, discount, total } = calculateTotals();
+          const demoReceipt = {
+            id: crypto.randomUUID(),
+            order_number: demoOrderNumber,
+            order_type: orderType,
+            order_status: 'Pending',
+            payment_method: paymentMethod,
+            payment_status: paymentMethod === 'Cash' ? 'Pending' : 'Paid',
+            customer_name: customerName,
+            delivery_address: orderType === 'Delivery' ? address : null,
+            created_at: new Date().toISOString(),
+            subtotal,
+            discount_amount: discount,
+            total_amount: total,
+            items: cart.map(item => ({
+              food_name_snapshot: item.name,
+              quantity: item.quantity,
+              unit_price: item.price,
+              line_total: Math.round(item.price * item.quantity * 100) / 100
+            })),
+            history: [{
+              old_status: null,
+              new_status: 'Pending',
+              changed_at: new Date().toISOString(),
+              note: 'Demo order placed locally.'
+            }]
+          };
+          sessionStorage.setItem('restaurant_demo_receipt', JSON.stringify(demoReceipt));
           clearCart();
           window.location.href = `/order-confirmation.html?order_number=${demoOrderNumber}&status=Pending&demo=true`;
           return;
@@ -273,9 +339,10 @@ function initCheckoutForm() {
           throw new Error(data?.message || 'Failed to place order.');
         }
 
-        // Successfully placed order!
+        // Successfully placed order. Confirmation verifies the stored order before showing success.
         clearCart();
-        window.location.href = `/order-confirmation.html?order_id=${data.order_id}&order_number=${data.order_number}`;
+        const redirectUrl = `/order-confirmation.html?order_id=${encodeURIComponent(data.order_id)}&order_number=${encodeURIComponent(data.order_number)}&subtotal=${encodeURIComponent(data.subtotal)}&discount=${encodeURIComponent(data.discount_amount)}&total=${encodeURIComponent(data.total_amount)}`;
+        window.location.href = redirectUrl;
       } catch (err) {
         console.error('Order creation error:', err);
         showError(err.message || 'An error occurred while creating your order. Please try again.');
@@ -286,6 +353,57 @@ function initCheckoutForm() {
       }
     });
   }
+}
+
+function hydrateOrderPreferences() {
+  const preferences = getOrderPreferences();
+  const orderTypeSelect = document.getElementById('checkout-order-type');
+  if (orderTypeSelect) orderTypeSelect.value = preferences.orderType;
+
+  const paymentRadio = document.querySelector(`input[name="payment_method"][value="${preferences.paymentMethod}"]`);
+  if (paymentRadio) paymentRadio.checked = true;
+}
+
+async function verifyCatalogState() {
+  if (!isSupabaseConfigured()) return true;
+
+  try {
+    const result = await revalidateCartAgainstCatalog();
+    if (result.changed) {
+      catalogChangesAcknowledged = false;
+      renderOrderSummary();
+      showCatalogChangeNotice(result.changes);
+      return false;
+    }
+    return catalogChangesAcknowledged;
+  } catch (err) {
+    showError(err.message || 'Could not verify current menu prices. Please try again.');
+    return false;
+  }
+}
+
+function showCatalogChangeNotice(changes) {
+  const alertBox = document.getElementById('checkout-cart-change-alert');
+  const messageBox = document.getElementById('checkout-cart-change-message');
+  const acknowledgeButton = document.getElementById('acknowledge-cart-changes-btn');
+  const submitButton = document.getElementById('place-order-btn');
+  if (!alertBox || !messageBox || !acknowledgeButton) return;
+
+  messageBox.innerHTML = changes.map(change => {
+    if (change.type === 'price') {
+      return `<li>${escapeHtml(change.name)} changed from ${formatCurrency(change.oldPrice)} to ${formatCurrency(change.newPrice)}.</li>`;
+    }
+    return `<li>${escapeHtml(change.name)} was removed because it is unavailable.</li>`;
+  }).join('');
+
+  alertBox.style.display = 'block';
+  if (submitButton) submitButton.disabled = true;
+  acknowledgeButton.onclick = () => {
+    catalogChangesAcknowledged = true;
+    alertBox.style.display = 'none';
+    if (submitButton && getCart().length > 0) submitButton.disabled = false;
+  };
+  alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function showError(msg) {
@@ -299,12 +417,3 @@ function showError(msg) {
   }
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

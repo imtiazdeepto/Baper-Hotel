@@ -159,9 +159,12 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
         NEW.email,
         NEW.raw_user_meta_data->>'phone',
-        'customer'
+        CASE WHEN LOWER(NEW.email) = 'admin@baperhotel.com' THEN 'admin' ELSE 'customer' END
     )
-    ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO UPDATE SET
+        role = CASE WHEN LOWER(NEW.email) = 'admin@baperhotel.com' THEN 'admin' ELSE profiles.role END,
+        email = EXCLUDED.email,
+        updated_at = NOW();
     RETURN NEW;
 END;
 $$;
@@ -427,18 +430,28 @@ SET search_path = public
 AS $$
 DECLARE
     v_old_status TEXT;
+    v_order_type TEXT;
     v_user_id UUID;
+    v_is_authorized BOOLEAN;
 BEGIN
     v_user_id := auth.uid();
-    IF NOT public.is_staff_or_admin() THEN
+
+    -- Check staff or admin permission
+    SELECT public.is_staff_or_admin() INTO v_is_authorized;
+    IF NOT v_is_authorized THEN
         RAISE EXCEPTION 'Access denied. Only staff and admin can update order status.';
     END IF;
 
+    -- Validate allowed statuses
     IF p_new_status NOT IN ('Pending', 'Confirmed', 'Preparing', 'Ready', 'Out for Delivery', 'Completed', 'Cancelled') THEN
         RAISE EXCEPTION 'Invalid order status: %', p_new_status;
     END IF;
 
-    SELECT order_status INTO v_old_status FROM public.orders WHERE id = p_order_id;
+    -- Fetch current status and order type
+    SELECT order_status, order_type INTO v_old_status, v_order_type
+    FROM public.orders
+    WHERE id = p_order_id;
+
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Order not found.';
     END IF;
@@ -447,6 +460,43 @@ BEGIN
         RETURN jsonb_build_object('success', TRUE, 'message', 'Status unchanged.');
     END IF;
 
+    -- Enforce terminal state
+    IF v_old_status IN ('Completed', 'Cancelled') THEN
+        RAISE EXCEPTION 'Order is already % and cannot be changed.', v_old_status;
+    END IF;
+
+    -- Enforce valid sequential transitions
+    IF p_new_status = 'Cancelled' THEN
+        IF v_old_status NOT IN ('Pending', 'Confirmed', 'Preparing') THEN
+            RAISE EXCEPTION 'Order cannot be cancelled once it is %.', v_old_status;
+        END IF;
+    ELSE
+        IF v_order_type = 'Delivery' THEN
+            IF NOT (
+                (v_old_status = 'Pending' AND p_new_status = 'Confirmed') OR
+                (v_old_status = 'Confirmed' AND p_new_status = 'Preparing') OR
+                (v_old_status = 'Preparing' AND p_new_status = 'Ready') OR
+                (v_old_status = 'Ready' AND p_new_status = 'Out for Delivery') OR
+                (v_old_status = 'Out for Delivery' AND p_new_status = 'Completed')
+            ) THEN
+                RAISE EXCEPTION 'Invalid status transition for Delivery order from % to %.', v_old_status, p_new_status;
+            END IF;
+        ELSE
+            IF p_new_status = 'Out for Delivery' THEN
+                RAISE EXCEPTION 'Status "Out for Delivery" is only applicable to Delivery orders.';
+            END IF;
+            IF NOT (
+                (v_old_status = 'Pending' AND p_new_status = 'Confirmed') OR
+                (v_old_status = 'Confirmed' AND p_new_status = 'Preparing') OR
+                (v_old_status = 'Preparing' AND p_new_status = 'Ready') OR
+                (v_old_status = 'Ready' AND p_new_status = 'Completed')
+            ) THEN
+                RAISE EXCEPTION 'Invalid status transition for % order from % to %.', v_order_type, v_old_status, p_new_status;
+            END IF;
+        END IF;
+    END IF;
+
+    -- Update order status
     UPDATE public.orders
     SET order_status = p_new_status,
         payment_status = CASE 
@@ -456,10 +506,26 @@ BEGIN
         updated_at = NOW()
     WHERE id = p_order_id;
 
-    INSERT INTO public.order_status_history (order_id, old_status, new_status, changed_by, note)
-    VALUES (p_order_id, v_old_status, p_new_status, v_user_id, COALESCE(p_note, 'Status updated to ' || p_new_status));
+    -- Record status history
+    INSERT INTO public.order_status_history (
+        order_id,
+        old_status,
+        new_status,
+        changed_by,
+        note
+    ) VALUES (
+        p_order_id,
+        v_old_status,
+        p_new_status,
+        v_user_id,
+        COALESCE(p_note, 'Status updated to ' || p_new_status)
+    );
 
-    RETURN jsonb_build_object('success', TRUE, 'old_status', v_old_status, 'new_status', p_new_status);
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'old_status', v_old_status,
+        'new_status', p_new_status
+    );
 END;
 $$;
 
@@ -488,12 +554,12 @@ BEGIN
         COUNT(*) FILTER (WHERE order_status = 'Cancelled'),
         COALESCE(SUM(subtotal) FILTER (WHERE order_status != 'Cancelled'), 0),
         COALESCE(SUM(discount_amount) FILTER (WHERE order_status != 'Cancelled'), 0),
-        COALESCE(SUM(total_amount) FILTER (WHERE order_status = 'Completed'), 0)
+        COALESCE(SUM(total_amount) FILTER (WHERE order_status != 'Cancelled'), 0)
     INTO
         v_total_orders, v_completed_orders, v_cancelled_orders,
         v_gross_sales, v_discounts, v_net_sales
     FROM public.orders
-    WHERE DATE(created_at AT TIME ZONE 'UTC') = p_report_date;
+    WHERE DATE(created_at AT TIME ZONE 'Asia/Dhaka') = p_report_date;
 
     SELECT COALESCE(jsonb_agg(
         jsonb_build_object(
@@ -511,7 +577,7 @@ BEGIN
     ), '[]'::jsonb)
     INTO v_orders
     FROM public.orders o
-    WHERE DATE(o.created_at AT TIME ZONE 'UTC') = p_report_date;
+    WHERE DATE(o.created_at AT TIME ZONE 'Asia/Dhaka') = p_report_date;
 
     RETURN jsonb_build_object(
         'report_date', p_report_date,
@@ -537,6 +603,7 @@ DECLARE
     v_order RECORD;
     v_items JSONB;
     v_history JSONB;
+    v_is_owner_or_staff BOOLEAN := FALSE;
 BEGIN
     SELECT * INTO v_order
     FROM public.orders
@@ -544,6 +611,11 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN NULL;
+    END IF;
+
+    -- Privacy check: only order owner or staff/admin can view raw PII
+    IF auth.uid() IS NOT NULL AND (auth.uid() = v_order.user_id OR public.is_staff_or_admin()) THEN
+        v_is_owner_or_staff := TRUE;
     END IF;
 
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
@@ -576,13 +648,15 @@ BEGIN
         'total_amount', v_order.total_amount,
         'payment_method', v_order.payment_method,
         'payment_status', v_order.payment_status,
-        'customer_name', v_order.customer_name,
-        'phone', v_order.phone,
-        'delivery_address', v_order.delivery_address,
-        'notes', v_order.notes,
+        -- Privacy protection: mask personal data if anonymous or not owner/staff
+        'customer_name', CASE WHEN v_is_owner_or_staff THEN v_order.customer_name ELSE 'Customer' END,
+        'phone', CASE WHEN v_is_owner_or_staff THEN v_order.phone ELSE NULL END,
+        'delivery_address', CASE WHEN v_is_owner_or_staff THEN v_order.delivery_address ELSE NULL END,
+        'notes', CASE WHEN v_is_owner_or_staff THEN v_order.notes ELSE NULL END,
         'created_at', v_order.created_at,
         'items', v_items,
-        'history', v_history
+        'history', v_history,
+        'is_owner_or_staff', v_is_owner_or_staff
     );
 END;
 $$;
@@ -745,3 +819,24 @@ VALUES
 ('d1000000-0000-0000-0000-000000000002', 'SUPER50', 'Flat ৳50 off on orders above ৳500', 'fixed', 50.00, 500.00, NULL, 300, 0, NOW() - INTERVAL '1 day', NOW() + INTERVAL '1 year', TRUE),
 ('d1000000-0000-0000-0000-000000000003', 'RAMEN15', '15% discount for Ramen lovers (Min ৳400)', 'percentage', 15.00, 400.00, 120.00, 200, 0, NOW() - INTERVAL '1 day', NOW() + INTERVAL '1 year', TRUE)
 ON CONFLICT (id) DO NOTHING;
+
+-- 7. GRANT PERMISSIONS TO SUPABASE ROLES
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_staff_or_admin() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_role(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_coupon(TEXT, NUMERIC) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.track_order(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_order(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_order_status(UUID, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_daily_sales_report(DATE) TO authenticated;
+
+-- 8. ADMIN ROLE INITIALIZATION
+-- Automatically upgrades admin@baperhotel.com if already registered in auth.users
+UPDATE public.profiles
+SET role = 'admin'
+WHERE LOWER(email) = 'admin@baperhotel.com';

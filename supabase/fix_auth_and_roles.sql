@@ -55,7 +55,7 @@ UPDATE public.profiles
 SET role = 'admin'
 WHERE email = 'admin@baperhotel.com';
 
--- 5. Safe Order Tracking Function (permits order tracking by unique order number across devices)
+-- 5. Safe Order Tracking Function (permits order tracking with privacy masking)
 DROP FUNCTION IF EXISTS public.track_order(TEXT);
 CREATE OR REPLACE FUNCTION public.track_order(p_order_number TEXT)
 RETURNS JSONB
@@ -67,6 +67,7 @@ DECLARE
     v_order RECORD;
     v_items JSONB;
     v_history JSONB;
+    v_is_owner_or_staff BOOLEAN := FALSE;
 BEGIN
     SELECT * INTO v_order
     FROM public.orders
@@ -74,6 +75,11 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN NULL;
+    END IF;
+
+    -- Privacy check: only order owner or staff/admin can view raw PII
+    IF auth.uid() IS NOT NULL AND (auth.uid() = v_order.user_id OR public.is_staff_or_admin()) THEN
+        v_is_owner_or_staff := TRUE;
     END IF;
 
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
@@ -106,13 +112,15 @@ BEGIN
         'total_amount', v_order.total_amount,
         'payment_method', v_order.payment_method,
         'payment_status', v_order.payment_status,
-        'customer_name', v_order.customer_name,
-        'phone', v_order.phone,
-        'delivery_address', v_order.delivery_address,
-        'notes', v_order.notes,
+        -- Privacy protection: mask personal data if anonymous or not owner/staff
+        'customer_name', CASE WHEN v_is_owner_or_staff THEN v_order.customer_name ELSE 'Customer' END,
+        'phone', CASE WHEN v_is_owner_or_staff THEN v_order.phone ELSE NULL END,
+        'delivery_address', CASE WHEN v_is_owner_or_staff THEN v_order.delivery_address ELSE NULL END,
+        'notes', CASE WHEN v_is_owner_or_staff THEN v_order.notes ELSE NULL END,
         'created_at', v_order.created_at,
         'items', v_items,
-        'history', v_history
+        'history', v_history,
+        'is_owner_or_staff', v_is_owner_or_staff
     );
 END;
 $$;

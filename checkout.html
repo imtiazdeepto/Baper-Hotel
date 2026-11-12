@@ -37,6 +37,12 @@
         <p class="text-muted small mb-4">Please provide your contact information and select dining preferences.</p>
 
         <div id="checkout-error-alert" class="alert alert-danger small rounded-3 mb-4" style="display:none;"></div>
+        <div id="checkout-cart-change-alert" class="alert alert-warning small rounded-3 mb-4" style="display:none;">
+          <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>Your cart was updated from the live menu</div>
+          <ul id="checkout-cart-change-message" class="mb-2 ps-3"></ul>
+          <div class="mb-2">Any coupon was removed so the new total can be checked again.</div>
+          <button type="button" id="acknowledge-cart-changes-btn" class="btn btn-sm btn-dark rounded-pill px-3">I accept the updated cart</button>
+        </div>
 
         <form id="checkout-form">
           <!-- 1. Order Type -->
@@ -53,24 +59,24 @@
           <div class="row g-3 mb-3">
             <div class="col-sm-6">
               <label for="checkout-name" class="form-label small fw-bold text-dark">Full Name *</label>
-              <input type="text" id="checkout-name" class="form-control rounded-3" placeholder="e.g. John Doe" required>
+              <input type="text" id="checkout-name" class="form-control rounded-3" placeholder="e.g. John Doe" maxlength="120" required>
             </div>
             <div class="col-sm-6">
               <label for="checkout-phone" class="form-label small fw-bold text-dark">Phone Number *</label>
-              <input type="tel" id="checkout-phone" class="form-control rounded-3" placeholder="+880 1700-000000" required>
+              <input type="tel" id="checkout-phone" class="form-control rounded-3" placeholder="+880 1700-000000" maxlength="20" required>
             </div>
           </div>
 
           <!-- 3. Delivery Address (Dynamic) -->
           <div class="mb-3" id="delivery-address-group" style="display:none;">
             <label for="checkout-address" class="form-label small fw-bold text-dark">Delivery Address *</label>
-            <textarea id="checkout-address" class="form-control rounded-3" rows="2" placeholder="House #, Road #, Area, City (e.g. House 14, Road 5, Dhanmondi, Dhaka)"></textarea>
+            <textarea id="checkout-address" class="form-control rounded-3" rows="2" maxlength="500" placeholder="House #, Road #, Area, City (e.g. House 14, Road 5, Dhanmondi, Dhaka)"></textarea>
           </div>
 
           <!-- 4. Special Kitchen Instructions -->
           <div class="mb-4">
             <label for="checkout-notes" class="form-label small fw-bold text-dark">Special Instructions / Allergies (Optional)</label>
-            <input type="text" id="checkout-notes" class="form-control rounded-3" placeholder="e.g. Less spicy, extra napkins, table #4">
+            <input type="text" id="checkout-notes" class="form-control rounded-3" maxlength="500" placeholder="e.g. Less spicy, extra napkins, table #4">
           </div>
 
           <!-- 5. Payment Methods Selection -->
@@ -111,13 +117,13 @@
               </div>
               <div class="row g-2">
                 <div class="col-12">
-                  <input type="text" class="form-control form-control-sm" placeholder="Card Number: 4532 •••• •••• 8890" value="4532 9988 1234 8890">
+                  <input type="text" class="form-control form-control-sm" placeholder="Demo card number" inputmode="numeric" autocomplete="off">
                 </div>
                 <div class="col-6">
-                  <input type="text" class="form-control form-control-sm" placeholder="MM/YY" value="12/28">
+                  <input type="text" class="form-control form-control-sm" placeholder="MM/YY" autocomplete="off">
                 </div>
                 <div class="col-6">
-                  <input type="password" class="form-control form-control-sm" placeholder="CVV" value="789">
+                  <input type="password" class="form-control form-control-sm" placeholder="CVV" autocomplete="off">
                 </div>
               </div>
               <div class="text-muted mt-2" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>No real payment gateway is charged; simulated for academic capstone demonstration.</div>
@@ -129,8 +135,8 @@
                 <span class="small fw-bold text-dark"><i class="fa-solid fa-wallet text-danger me-1"></i>Simulated Mobile Wallet (bKash/Nagad)</span>
                 <span class="badge bg-warning text-dark">Demo Mode</span>
               </div>
-              <input type="text" class="form-control form-control-sm mb-2" placeholder="Wallet Account: 017XXXXXXXX" value="01712345678">
-              <input type="password" class="form-control form-control-sm" placeholder="Wallet PIN: ••••" value="1234">
+              <input type="text" class="form-control form-control-sm mb-2" placeholder="Wallet Account: 017XXXXXXXX" autocomplete="off">
+              <input type="password" class="form-control form-control-sm" placeholder="Wallet PIN: ••••" autocomplete="off">
               <div class="text-muted mt-2" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Demo simulation only. Order will be marked Paid upon confirmation.</div>
             </div>
           </div>
