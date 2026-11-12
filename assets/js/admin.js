@@ -16,20 +16,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const authData = await requireAuth(['admin']);
   if (!authData) return;
 
-  const path = window.location.pathname;
-  if (path.includes('dashboard.html')) {
+  const path = window.location.pathname.toLowerCase();
+  if (document.getElementById('admin-metrics-row') || path.includes('dashboard')) {
     initDashboard();
-  } else if (path.includes('food-form.html')) {
+  } else if (document.getElementById('food-item-form') || path.includes('food-form')) {
     initFoodForm();
-  } else if (path.includes('foods.html')) {
+  } else if (document.getElementById('admin-foods-table-body') || path.includes('foods')) {
     initFoodsList();
-  } else if (path.includes('categories.html')) {
+  } else if (document.getElementById('categories-table-body') || path.includes('categories')) {
     initCategories();
-  } else if (path.includes('orders.html')) {
+  } else if (document.getElementById('admin-orders-table-body') || path.includes('orders')) {
     initOrdersManagement();
-  } else if (path.includes('coupons.html')) {
+  } else if (document.getElementById('coupons-table-body') || path.includes('coupons')) {
     initCoupons();
-  } else if (path.includes('reports.html')) {
+  } else if (document.getElementById('daily-sales-report-container') || path.includes('reports')) {
     initReports();
   }
 });

@@ -11,13 +11,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkAndDisplayConfigNotice();
   await setupAuthNav();
 
-  const path = window.location.pathname;
-  if (path.includes('order-confirmation.html')) {
-    initOrderConfirmation();
-  } else if (path.includes('track-order.html')) {
-    initOrderTracking();
-  } else if (path.includes('order-history.html')) {
-    initOrderHistory();
+  const path = window.location.pathname.toLowerCase();
+  if (document.getElementById('conf-order-number') || path.includes('order-confirmation')) {
+    await initOrderConfirmation();
+  } else if (document.getElementById('track-search-form') || path.includes('track-order')) {
+    await initOrderTracking();
+  } else if (document.getElementById('order-history-list') || path.includes('order-history')) {
+    await initOrderHistory();
   }
 });
 
@@ -45,22 +45,52 @@ async function initOrderConfirmation() {
     trackLink.href = `/track-order.html?order_number=${encodeURIComponent(orderNumber)}`;
   }
 
-  if (isDemo || !isSupabaseConfigured() || !orderId) {
+  if (isDemo || !isSupabaseConfigured() || (!orderId && !orderNumber)) {
     if (statusEl) statusEl.innerHTML = `<span class="badge bg-warning text-dark px-3 py-2 rounded-pill">Pending (Demo Mode)</span>`;
     return;
   }
 
-  try {
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        items:order_items(*)
-      `)
-      .eq('id', orderId)
-      .single();
+  // Ensure Supabase auth session token is loaded into client
+  await getCurrentUser();
 
-    if (error || !order) throw error;
+  try {
+    let order = null;
+
+    // Try track_order RPC first (safe, fast, returns items atomically)
+    if (orderNumber) {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('track_order', {
+        p_order_number: orderNumber.trim()
+      });
+      if (!rpcError && rpcData && rpcData.order_number) {
+        order = rpcData;
+      }
+    }
+
+    // Fallback: direct table query by id or order_number
+    if (!order) {
+      let query = supabase
+        .from('orders')
+        .select(`
+          *,
+          items:order_items(*)
+        `);
+
+      if (orderId) {
+        query = query.eq('id', orderId);
+      } else {
+        query = query.eq('order_number', orderNumber);
+      }
+
+      const { data, error } = await query.maybeSingle();
+      if (!error && data) {
+        order = data;
+      }
+    }
+
+    if (!order) {
+      console.warn('Order confirmation details not found yet for id/number.');
+      return;
+    }
 
     if (orderNumEl) orderNumEl.textContent = order.order_number;
     if (dateEl) dateEl.textContent = new Date(order.created_at).toLocaleString();
@@ -68,7 +98,7 @@ async function initOrderConfirmation() {
       statusEl.innerHTML = `<span class="badge ${getStatusBadgeClass(order.order_status)} px-3 py-2 rounded-pill">${escapeHtml(order.order_status)}</span>`;
     }
 
-    if (itemsContainer && order.items) {
+    if (itemsContainer && order.items && order.items.length > 0) {
       itemsContainer.innerHTML = order.items.map(item => `
         <div class="d-flex justify-content-between py-2 border-bottom small">
           <div>
@@ -78,6 +108,8 @@ async function initOrderConfirmation() {
           <span class="fw-bold text-dark">${formatCurrency(item.line_total)}</span>
         </div>
       `).join('');
+    } else if (itemsContainer) {
+      itemsContainer.innerHTML = `<div class="text-success small"><i class="fa-solid fa-check me-1"></i>Items recorded in kitchen order queue.</div>`;
     }
 
     if (subtotalEl) subtotalEl.textContent = formatCurrency(order.subtotal);
@@ -98,6 +130,9 @@ async function initOrderTracking() {
   const params = new URLSearchParams(window.location.search);
   const initialOrderNumber = params.get('order_number');
 
+  // Hydrate auth session
+  await getCurrentUser();
+
   if (initialOrderNumber && searchInput) {
     searchInput.value = initialOrderNumber;
     await fetchAndRenderTracking(initialOrderNumber);
@@ -108,6 +143,9 @@ async function initOrderTracking() {
       e.preventDefault();
       const num = searchInput?.value.trim();
       if (num) {
+        // Update URL query string without reloading page for bookmarkability
+        const newUrl = `${window.location.pathname}?order_number=${encodeURIComponent(num)}`;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
         await fetchAndRenderTracking(num);
       }
     });
@@ -147,21 +185,36 @@ async function fetchAndRenderTracking(orderNumber) {
   }
 
   try {
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        items:order_items(*),
-        history:order_status_history(*)
-      `)
-      .eq('order_number', orderNumber.trim())
-      .maybeSingle();
+    let order = null;
 
-    if (error) throw error;
+    // 1. Try track_order RPC first (bypasses RLS ownership restrictions safely for order tracking)
+    const { data: rpcData, error: rpcError } = await supabase.rpc('track_order', {
+      p_order_number: orderNumber.trim()
+    });
+
+    if (!rpcError && rpcData && rpcData.order_number) {
+      order = rpcData;
+    }
+
+    // 2. Fallback to direct table query
+    if (!order) {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          items:order_items(*),
+          history:order_status_history(*)
+        `)
+        .eq('order_number', orderNumber.trim())
+        .maybeSingle();
+
+      if (error) throw error;
+      order = data;
+    }
 
     if (!order) {
       if (errorAlert) {
-        errorAlert.textContent = `No order found with order number "${orderNumber}". Please check the number and try again.`;
+        errorAlert.textContent = `No order found with order number "${orderNumber}". Please verify your order number and try again.`;
         errorAlert.style.display = 'block';
       }
       return;

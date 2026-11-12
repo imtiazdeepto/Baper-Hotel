@@ -151,6 +151,24 @@
           <!-- Populated by checkout.js -->
         </div>
 
+        <!-- Coupon input on Checkout -->
+        <div class="mb-3 pb-3 border-bottom" id="checkout-coupon-section">
+          <label class="form-label small fw-bold text-dark mb-1"><i class="fa-solid fa-tag text-primary me-1"></i>Apply Promo / Coupon Code</label>
+          <div id="checkout-coupon-box">
+            <div class="input-group input-group-sm mb-2">
+              <input type="text" id="checkout-coupon-input" class="form-control rounded-start-pill text-uppercase" placeholder="e.g. WELCOME10">
+              <button class="btn btn-dark rounded-end-pill px-3" type="button" id="checkout-apply-coupon-btn">Apply</button>
+            </div>
+          </div>
+          <div id="checkout-coupon-error" class="text-danger small mb-2" style="display:none;"></div>
+          <div class="d-flex flex-wrap gap-1 align-items-center">
+            <span class="text-muted small" style="font-size:0.75rem;">Try:</span>
+            <button type="button" class="badge bg-light text-dark border rounded-pill text-decoration-none coupon-quick-btn py-1 px-2" data-code="WELCOME10">WELCOME10 (10% off)</button>
+            <button type="button" class="badge bg-light text-dark border rounded-pill text-decoration-none coupon-quick-btn py-1 px-2" data-code="SUPER50">SUPER50 (৳50 off)</button>
+            <button type="button" class="badge bg-light text-dark border rounded-pill text-decoration-none coupon-quick-btn py-1 px-2" data-code="RAMEN15">RAMEN15 (15% off)</button>
+          </div>
+        </div>
+
         <div class="d-flex justify-content-between small text-muted mb-2">
           <span>Subtotal</span>
           <span class="fw-semibold text-dark" id="checkout-subtotal">৳ 0.00</span>

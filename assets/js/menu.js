@@ -426,26 +426,60 @@ function renderCartSidebar() {
       });
     } else {
       couponSection.innerHTML = `
-        <div class="coupon-row">
+        <div class="coupon-row mb-1">
           <input type="text" id="coupon-code-input" placeholder="Coupon (e.g. WELCOME10)" class="text-uppercase">
           <button class="button button-secondary py-1 px-3" type="button" id="apply-coupon-btn">Apply</button>
         </div>
-        <div id="coupon-error-msg" class="text-danger small mt-1" style="display:none;"></div>
+        <div id="coupon-error-msg" class="text-danger small mb-1" style="display:none;"></div>
+        <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+          <span class="text-muted small" style="font-size:0.72rem;">Try:</span>
+          <button type="button" class="badge bg-light text-dark border rounded-pill py-1 px-2 sidebar-quick-coupon" data-code="WELCOME10">WELCOME10</button>
+          <button type="button" class="badge bg-light text-dark border rounded-pill py-1 px-2 sidebar-quick-coupon" data-code="SUPER50">SUPER50</button>
+          <button type="button" class="badge bg-light text-dark border rounded-pill py-1 px-2 sidebar-quick-coupon" data-code="RAMEN15">RAMEN15</button>
+        </div>
       `;
 
-      document.getElementById('apply-coupon-btn')?.addEventListener('click', async () => {
-        const code = document.getElementById('coupon-code-input')?.value.trim();
-        const errorEl = document.getElementById('coupon-error-msg');
+      const couponInput = document.getElementById('coupon-code-input');
+      const applyBtn = document.getElementById('apply-coupon-btn');
+      const errorEl = document.getElementById('coupon-error-msg');
+
+      const triggerApplyCoupon = async (codeToApply) => {
+        const code = (codeToApply || couponInput?.value || '').trim();
         if (!code) return;
         try {
           if (errorEl) errorEl.style.display = 'none';
+          if (applyBtn) {
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+          }
           await applyCoupon(code);
         } catch (err) {
           if (errorEl) {
-            errorEl.textContent = err.message;
+            errorEl.textContent = err.message || 'Invalid coupon.';
             errorEl.style.display = 'block';
           }
+        } finally {
+          if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = 'Apply';
+          }
         }
+      };
+
+      applyBtn?.addEventListener('click', () => triggerApplyCoupon());
+      couponInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          triggerApplyCoupon();
+        }
+      });
+
+      document.querySelectorAll('.sidebar-quick-coupon').forEach(badge => {
+        badge.onclick = () => {
+          const c = badge.getAttribute('data-code');
+          if (couponInput) couponInput.value = c;
+          triggerApplyCoupon(c);
+        };
       });
     }
   }

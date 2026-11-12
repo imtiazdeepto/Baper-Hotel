@@ -177,27 +177,66 @@
     if (coupon) {
       couponBox.innerHTML = `
         <div class="d-flex align-items-center justify-content-between p-2 bg-success-subtle text-success border border-success-subtle rounded-3">
-          <span class="small fw-semibold"><i class="fa-solid fa-tag me-1"></i>${coupon.code}: Saved ${formatCurrency(discount)}</span>
-          <button class="btn btn-sm btn-link text-danger p-0 text-decoration-none small" id="page-rem-coupon">Remove</button>
+          <span class="small fw-bold"><i class="fa-solid fa-circle-check me-1"></i>${coupon.code}: Saved ${formatCurrency(discount)}</span>
+          <button class="btn btn-sm btn-link text-danger p-0 text-decoration-none small fw-semibold" id="page-rem-coupon">Remove</button>
         </div>
       `;
       document.getElementById('page-rem-coupon')?.addEventListener('click', () => setAppliedCoupon(null));
     } else {
       couponBox.innerHTML = `
-        <div class="input-group input-group-sm">
-          <input type="text" id="page-coupon-input" class="form-control rounded-start-pill text-uppercase" placeholder="Coupon Code (e.g. WELCOME10)">
+        <div class="input-group input-group-sm mb-2">
+          <input type="text" id="page-coupon-input" class="form-control rounded-start-pill text-uppercase" placeholder="e.g. WELCOME10">
           <button class="btn btn-dark rounded-end-pill px-3" id="page-apply-coupon-btn">Apply</button>
         </div>
+        <div id="page-coupon-error" class="text-danger small mb-2" style="display:none;"></div>
+        <div class="d-flex flex-wrap gap-1 align-items-center">
+          <span class="text-muted small" style="font-size:0.75rem;">Try:</span>
+          <button type="button" class="badge bg-light text-dark border rounded-pill py-1 px-2 page-quick-coupon" data-code="WELCOME10">WELCOME10 (10% off)</button>
+          <button type="button" class="badge bg-light text-dark border rounded-pill py-1 px-2 page-quick-coupon" data-code="SUPER50">SUPER50 (৳50 off)</button>
+          <button type="button" class="badge bg-light text-dark border rounded-pill py-1 px-2 page-quick-coupon" data-code="RAMEN15">RAMEN15 (15% off)</button>
+        </div>
       `;
-      document.getElementById('page-apply-coupon-btn')?.addEventListener('click', async () => {
-        const c = document.getElementById('page-coupon-input')?.value.trim();
-        if (c) {
-          try {
-            await applyCoupon(c);
-          } catch (err) {
+
+      const input = document.getElementById('page-coupon-input');
+      const applyBtn = document.getElementById('page-apply-coupon-btn');
+      const errorEl = document.getElementById('page-coupon-error');
+
+      const triggerApply = async (codeToApply) => {
+        const c = (codeToApply || input?.value || '').trim();
+        if (!c) return;
+        if (errorEl) errorEl.style.display = 'none';
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+        try {
+          await applyCoupon(c);
+        } catch (err) {
+          if (errorEl) {
+            errorEl.textContent = err.message || 'Coupon not valid for this cart.';
+            errorEl.style.display = 'block';
+          } else {
             alert(err.message);
           }
+        } finally {
+          applyBtn.disabled = false;
+          applyBtn.innerHTML = 'Apply';
         }
+      };
+
+      applyBtn?.addEventListener('click', () => triggerApply());
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          triggerApply();
+        }
+      });
+
+      document.querySelectorAll('.page-quick-coupon').forEach(badge => {
+        badge.onclick = () => {
+          const code = badge.getAttribute('data-code');
+          if (input) input.value = code;
+          triggerApply(code);
+        };
       });
     }
   }

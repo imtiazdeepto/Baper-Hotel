@@ -55,5 +55,69 @@ UPDATE public.profiles
 SET role = 'admin'
 WHERE email = 'admin@baperhotel.com';
 
--- 5. Verification query: Run this to see all users and their assigned roles
+-- 5. Safe Order Tracking Function (permits order tracking by unique order number across devices)
+DROP FUNCTION IF EXISTS public.track_order(TEXT);
+CREATE OR REPLACE FUNCTION public.track_order(p_order_number TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_order RECORD;
+    v_items JSONB;
+    v_history JSONB;
+BEGIN
+    SELECT * INTO v_order
+    FROM public.orders
+    WHERE order_number = TRIM(p_order_number);
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'food_name_snapshot', food_name_snapshot,
+        'quantity', quantity,
+        'unit_price', unit_price,
+        'line_total', line_total
+    )), '[]'::jsonb) INTO v_items
+    FROM public.order_items
+    WHERE order_id = v_order.id;
+
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'old_status', old_status,
+        'new_status', new_status,
+        'changed_at', changed_at,
+        'note', note
+    ) ORDER BY changed_at ASC), '[]'::jsonb) INTO v_history
+    FROM public.order_status_history
+    WHERE order_id = v_order.id;
+
+    RETURN jsonb_build_object(
+        'id', v_order.id,
+        'order_number', v_order.order_number,
+        'order_type', v_order.order_type,
+        'order_status', v_order.order_status,
+        'subtotal', v_order.subtotal,
+        'discount_amount', v_order.discount_amount,
+        'total_amount', v_order.total_amount,
+        'payment_method', v_order.payment_method,
+        'payment_status', v_order.payment_status,
+        'customer_name', v_order.customer_name,
+        'phone', v_order.phone,
+        'delivery_address', v_order.delivery_address,
+        'notes', v_order.notes,
+        'created_at', v_order.created_at,
+        'items', v_items,
+        'history', v_history
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.track_order(TEXT) TO anon, authenticated;
+
+-- 6. Verification query: Run this to see all users and their assigned roles
 SELECT id, full_name, email, role, created_at FROM public.profiles;

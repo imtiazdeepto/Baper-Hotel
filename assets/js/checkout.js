@@ -5,7 +5,7 @@
 
 import { supabase, isSupabaseConfigured, checkAndDisplayConfigNotice } from './supabaseClient.js';
 import { getCurrentUser, getUserProfile, setupAuthNav } from './auth.js';
-import { getCart, clearCart, calculateTotals, formatCurrency } from './cart.js';
+import { getCart, clearCart, calculateTotals, formatCurrency, applyCoupon, setAppliedCoupon, getAppliedCoupon } from './cart.js';
 
 let currentUser = null;
 let userProfile = null;
@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 4. Render Checkout Order Summary
   renderOrderSummary();
+  window.addEventListener('cart-updated', renderOrderSummary);
 
   // 5. Setup Form Interactions
   initCheckoutForm();
@@ -63,6 +64,8 @@ function renderOrderSummary() {
   const discountEl = document.getElementById('checkout-discount');
   const totalEl = document.getElementById('checkout-total');
   const discountRow = document.getElementById('checkout-discount-row');
+  const couponBox = document.getElementById('checkout-coupon-box');
+  const couponError = document.getElementById('checkout-coupon-error');
 
   const cart = getCart();
   const { subtotal, discount, total, coupon } = calculateTotals();
@@ -91,6 +94,71 @@ function renderOrderSummary() {
   }
 
   if (totalEl) totalEl.textContent = formatCurrency(total);
+
+  // Render Coupon state inside Checkout
+  if (couponBox) {
+    if (coupon) {
+      couponBox.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between p-2 bg-success-subtle text-success border border-success-subtle rounded-3">
+          <span class="small fw-bold"><i class="fa-solid fa-circle-check me-1"></i>${escapeHtml(coupon.code)} applied (-${formatCurrency(discount)})</span>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none small fw-semibold" id="checkout-remove-coupon-btn">Remove</button>
+        </div>
+      `;
+      document.getElementById('checkout-remove-coupon-btn')?.addEventListener('click', () => {
+        setAppliedCoupon(null);
+        if (couponError) couponError.style.display = 'none';
+      });
+    } else {
+      couponBox.innerHTML = `
+        <div class="input-group input-group-sm mb-2">
+          <input type="text" id="checkout-coupon-input" class="form-control rounded-start-pill text-uppercase" placeholder="e.g. WELCOME10">
+          <button class="btn btn-dark rounded-end-pill px-3" type="button" id="checkout-apply-coupon-btn">Apply</button>
+        </div>
+      `;
+
+      const input = document.getElementById('checkout-coupon-input');
+      const applyBtn = document.getElementById('checkout-apply-coupon-btn');
+
+      const triggerApply = async (codeToApply) => {
+        const code = (codeToApply || input?.value || '').trim();
+        if (!code) return;
+        if (couponError) couponError.style.display = 'none';
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+        try {
+          await applyCoupon(code);
+        } catch (err) {
+          if (couponError) {
+            couponError.textContent = err.message || 'Invalid coupon code.';
+            couponError.style.display = 'block';
+          }
+        } finally {
+          applyBtn.disabled = false;
+          applyBtn.innerHTML = 'Apply';
+        }
+      };
+
+      applyBtn?.addEventListener('click', () => triggerApply());
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          triggerApply();
+        }
+      });
+    }
+  }
+
+  // Quick coupon badge click triggers
+  document.querySelectorAll('.coupon-quick-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const code = btn.getAttribute('data-code');
+      const input = document.getElementById('checkout-coupon-input');
+      if (input) input.value = code;
+      const applyBtn = document.getElementById('checkout-apply-coupon-btn');
+      if (applyBtn) applyBtn.click();
+    };
+  });
 }
 
 function initCheckoutForm() {
